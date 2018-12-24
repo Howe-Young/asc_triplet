@@ -3,6 +3,7 @@
 /ckpt
 .idea/
 *.h5
+*.png
 __pycache__/
 *.py[cod]
 *$py.class
