@@ -323,11 +323,6 @@ class Dcase18TaskbData:
 if __name__ == '__main__':
     data_manager = Dcase18TaskbData()
     data_manager.create_devh5()
-    # filepath = data_manager.dev_h5_path
-    # with h5py.File(filepath, 'r') as f:
-    #     for key in f['test'].keys():
-    #         print(f['test'][key].attrs['label'])
-
     data_manager.create_dev_matrix()
     data_manager.create_dev_matrix_fnames()
     dataset_b = data_manager.load_dev(mode='train', devices='b')
