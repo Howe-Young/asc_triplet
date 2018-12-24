@@ -325,6 +325,10 @@ if __name__ == '__main__':
     data_manager.create_devh5()
     data_manager.create_dev_matrix()
     data_manager.create_dev_matrix_fnames()
-    dataset_b = data_manager.load_dev(mode='train', devices='b')
-    print(dataset_b[1].shape)
-    # print(dataset_b[1])
+
+    # list of the number of train/test set
+    for mode in ['train', 'test']:
+        for device in ['a', 'b', 'c', 'p', 'A', 'abc']:
+            data, label = data_manager.load_dev(mode=mode, devices=device)
+            # print(mode + '/' + device + ': ', len(label))
+    # dataset_b = data_manager.load_dev(mode='train', devices='b')
