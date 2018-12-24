@@ -2,6 +2,7 @@
 /test
 /ckpt
 .idea/
+*.h5
 __pycache__/
 *.py[cod]
 *$py.class
