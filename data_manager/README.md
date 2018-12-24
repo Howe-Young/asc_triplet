@@ -20,7 +20,7 @@ Extracting features from raw wav file and doing some transforms.
 **Note**:  
 a indicates training or testing data on all device A  
 b indicates training or testing data on all device B
-c indicates training or testing data on all device C
+c indicates training or testing data on all device C  
 p indicates training or testing data parallel to device BC in device A  
 A indicates training or testing data exclude p in device A 
 
