@@ -10,7 +10,7 @@ class DevSet(Dataset):
     def __init__(self, mode='train', device='abc', transform=None):
         super(DevSet, self).__init__()
         self.data_manager = Dcase18TaskbData()
-        self.data, self.label = self.data_manager.load_dev(mode=mode, devices=device)
+        self.data, self.labels = self.data_manager.load_dev(mode=mode, devices=device)
         self.data = np.expand_dims(self.data, axis=1)
         self.transform = transform
 
@@ -18,7 +18,7 @@ class DevSet(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        sample = (self.data[index], self.label[index])
+        sample = (self.data[index], self.labels[index])
         if self.transform:
             sample = self.transform(sample)
         return sample
