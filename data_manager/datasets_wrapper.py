@@ -1,6 +1,8 @@
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from data_manager.data_prepare import Dcase18TaskbData
+from torch.utils.data.sampler import BatchSampler
+from data_manager.datasets import DevSet
 import numpy as np
 
 """
@@ -56,10 +58,49 @@ class TripletDevSet(Dataset):
         return len(self.labels)
 
 
+class BalanceBatchSampler(BatchSampler):
+    def __init__(self, dataset, n_classes, n_samples):
+        self.labels = dataset.labels
+        self.labels_set = list(set(self.labels))
+        self.labels_to_indices = {label: np.where(self.labels == label)[0] for label in self.labels_set}
+        for l in self.labels_set:
+            np.random.shuffle(self.labels_to_indices[l])
+        self.used_label_indices_count = {label: 0 for label in self.labels_set}
+        self.count = 0
+        self.n_classes = n_classes
+        self.n_samples = n_samples
+        self.batch_size = n_classes * n_samples
+        self.dataset = dataset
+
+    def __iter__(self):
+        self.count = 0
+        while self.count + self.batch_size < len(self.dataset):
+            classes = np.random.choice(self.labels_set, self.n_classes, replace=False)
+            indices = []
+            for class_ in classes:
+                indices.extend(self.labels_to_indices[class_][self.used_label_indices_count[class_] :
+                                                              self.used_label_indices_count[class_] + self.n_samples])
+                self.used_label_indices_count[class_] += self.n_samples
+                if self.used_label_indices_count[class_] + self.n_samples > len(self.labels_to_indices[class_]):
+                    np.random.shuffle(self.labels_to_indices[class_])
+                    self.used_label_indices_count[class_] = 0
+            yield indices
+            self.count += self.batch_size
+
+    def __len__(self):
+        return len(self.dataset) // self.batch_size
+
+
 if __name__ == '__main__':
-    triplet_dataset = TripletDevSet(mode='train', device='b')
-    triplet_loader = DataLoader(dataset=triplet_dataset, batch_size=128, shuffle=True, num_workers=1)
-    for batch_id, (data, label) in enumerate(triplet_loader):
+    # triplet_dataset = TripletDevSet(mode='train', device='b')
+    # triplet_loader = DataLoader(dataset=triplet_dataset, batch_size=128, shuffle=True, num_workers=1)
+    # for batch_id, (data, label) in enumerate(triplet_loader):
+    #     print('batch id: ', batch_id)
+    #     print('triplet data size: ', data[0].size(), data[1].size(), data[2].size())
+    #     print('every batch first three labels: ', label[0][0].item(), label[1][0].item(), label[2][0].item())
+    dev_set = DevSet(mode='train', device='b')
+    batch_sampler = BalanceBatchSampler(dataset=dev_set, n_classes=10, n_samples=6)
+    loader = DataLoader(dataset=dev_set, batch_sampler=batch_sampler, num_workers=1)
+    for batch_id, data in enumerate(loader):
         print('batch id: ', batch_id)
-        print('triplet data size: ', data[0].size(), data[1].size(), data[2].size())
-        print('every batch first three labels: ', label[0][0].item(), label[1][0].item(), label[2][0].item())
+        print('data: ', data[1])
