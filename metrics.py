@@ -28,7 +28,7 @@ class AccumulatedAccuracyMetric(Metric):
         self.total = 0
 
     def __call__(self, outputs, target, loss):
-        pred = outputs[0].data.max(1, keepdim=True)[1]
+        pred = outputs[0].data.max(1, keepdim=True)[1] # why outputs[0]? Because it's a tuple, outputs[0] is a ndarray
         self.correct += pred.eq(target[0].data.view_as(pred)).cpu().sum()
         self.total += target[0].size(0)
         return self.value()
