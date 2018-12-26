@@ -1,7 +1,6 @@
 # Byte-compiled / optimized / DLL files
 /test
 /ckpt
-/jupyter_script
 .idea/
 *.h5
 *.png
