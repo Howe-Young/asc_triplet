@@ -7,6 +7,12 @@ implement datasets class
 """
 
 class DevSet(Dataset):
+    """
+    specify mode and device, return the after transform dataset.
+    mode: train or test
+    device: subset of abc(e.g. bc)
+    transform: callable class
+    """
     def __init__(self, mode='train', device='abc', transform=None):
         super(DevSet, self).__init__()
         self.data_manager = Dcase18TaskbData()
