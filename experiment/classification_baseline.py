@@ -47,7 +47,7 @@ def classification_baseline_exp(device='2', lr=1e-3, n_epochs=300, batch_size=12
 
 if __name__ == '__main__':
     kwargs = {
-        'device': 4,
+        'device': 2,
         'lr': 1e-3,
         'n_epochs': 300,
         'batch_size': 128,
