@@ -50,16 +50,22 @@ class AverageNoneZeroTripletsMetric(Metric):
     """
     def __init__(self):
         self.values = []
+        self.total_triplets = []
 
     def __call__(self, outputs, target, loss):
         self.values.append(loss[1])
-        return self.value()
+        self.total_triplets.append(loss[2])
+        return self.value(), self.total()
 
     def reset(self):
         self.values = []
+        self.total_triplets = []
 
     def value(self):
         return np.mean(self.values)
+
+    def total(self):
+        return np.mean(self.total_triplets)
 
     def name(self):
         return 'Average nonzero triplets'
