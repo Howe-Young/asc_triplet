@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 /test
 /ckpt
+/jupyter_script/.ipynb_checkpoints
 .idea/
 *.h5
 *.png
