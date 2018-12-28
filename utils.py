@@ -57,7 +57,6 @@ class FunctionNegativeTripletSelector(object):
 
         labels = labels.cpu().data.numpy()
         triplets = []
-        triplets_count = 0
 
         for label in set(labels):
             label_mask = (labels == label)
@@ -67,7 +66,6 @@ class FunctionNegativeTripletSelector(object):
             negative_indices = np.where(np.logical_not(label_mask))[0]
             anchor_positives = list(combinations(label_indices, 2))  # All anchor-positive pairs
             anchor_positives = np.array(anchor_positives)
-            triplets_count += anchor_positives.shape[0]
 
             ap_distances = distance_matrix[anchor_positives[:, 0], anchor_positives[:, 1]]
             for anchor_positive, ap_distance in zip(anchor_positives, ap_distances):
@@ -84,7 +82,7 @@ class FunctionNegativeTripletSelector(object):
 
         triplets = np.array(triplets)
 
-        return torch.LongTensor(triplets), triplets_count
+        return torch.LongTensor(triplets)
 
 
 def HardestNegativeTripletSelector(margin, cpu=False):
