@@ -6,9 +6,9 @@ from torchvision.transforms import Compose
 from data_manager.transformer import ToTensor, Normalize
 from torch.utils.data import DataLoader
 import os
-from networks import vggish_bn
+import networks
 from losses import OnlineTripletLoss
-from utils import RandomNegativeTripletSelector
+import utils
 from metrics import AverageNoneZeroTripletsMetric
 import torch.optim as optim
 from torch.optim import lr_scheduler
@@ -48,9 +48,9 @@ def hard_triplet_baseline_exp(device='3', lr=1e-3, n_epochs=300, n_classes=10, n
     test_batch_sampler = BalanceBatchSampler(dataset=test_dataset, n_classes=n_classes, n_samples=n_samples)
     test_batch_loader = DataLoader(dataset=test_dataset, batch_sampler=test_batch_sampler, num_workers=1)
 
-    model = vggish_bn()
+    model = networks.embedding_net_shallow()
     model = model.cuda()
-    loss_fn = OnlineTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin))
+    loss_fn = OnlineTripletLoss(margin=margin, triplet_selector=utils.RandomNegativeTripletSelector(margin=margin))
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.5)
 
@@ -58,16 +58,21 @@ def hard_triplet_baseline_exp(device='3', lr=1e-3, n_epochs=300, n_classes=10, n
         optimizer=optimizer, scheduler=scheduler, n_epochs=n_epochs, log_interval=log_interval,
         metrics=[AverageNoneZeroTripletsMetric()])
 
+    train_embedding_tl, train_labels_tl = utils.extract_embeddings(train_batch_loader, model)
+    utils.plot_embeddings(train_embedding_tl, train_labels_tl)
+    test_embedding_tl, test_labels_tl = utils.extract_embeddings(test_batch_loader, model)
+    utils.plot_embeddings(test_embedding_tl, test_labels_tl)
+
 if __name__ == '__main__':
 
     kwargs = {
         'device': '2',
         'lr': 1e-3,
-        'n_epochs': 300,
+        'n_epochs': 50,
         'n_classes': 10,
         'n_samples': 12,
-        'margin': 0.3,
-        'log_interval': 50
+        'margin': 1.0,
+        'log_interval': 80
     }
 
     hard_triplet_baseline_exp(**kwargs)
