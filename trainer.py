@@ -3,7 +3,20 @@ import numpy as np
 
 
 def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs, log_interval, metrics=[], start_epoch=0):
-
+    """
+    fit model and test model
+    :param train_loader:
+    :param val_loader:
+    :param model:
+    :param loss_fn: loss function
+    :param optimizer:
+    :param scheduler:
+    :param n_epochs: total epochs
+    :param log_interval: print message every log_interval steps
+    :param metrics: Accuracy or Non-zero triplets.
+    :param start_epoch:
+    :return: None
+    """
     for epoch in range(0, start_epoch):
         scheduler.step()
 
@@ -15,7 +28,7 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
 
         message = 'Epoch: {}/{}. Train set: Average loss: {:.4f}.'.format(epoch + 1, n_epochs, train_loss)
         for metric in metrics:
-            message += '\t{}: {}'.format(metric.name(), metric.value())
+            message += '\t{}: {}/{}'.format(metric.name(), metric.value(), metric.total())
 
         # test stage
         val_loss, metrics = test_epoch(val_loader, model, loss_fn, metrics)
@@ -23,7 +36,7 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
 
         message += '\nEpoch: {}/{}. Validation set: Average loss: {:.4f}'.format(epoch + 1, n_epochs, val_loss)
         for metric in metrics:
-            message += '\t{}: {}'.format(metric.name(), metric.value())
+            message += '\t{}: {}/{}'.format(metric.name(), metric.value(), metric.total())
 
         print(message)
 
@@ -69,7 +82,7 @@ def train_epoch(train_loader, model, loss_fn, optimizer, log_interval, metrics):
             message = 'Train: [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(batch_idx * len(data[0]), len(train_loader.dataset),
                                                                       100 * batch_idx / len(train_loader), np.mean(losses))
             for metric in metrics:
-                message += '\t{}: {}'.format(metric.name(), metric.value())
+                message += '\t{}: {}/{}'.format(metric.name(), metric.value(), metric.total())
 
             print(message)
             losses = []
