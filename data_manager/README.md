@@ -30,6 +30,22 @@ Using librosa library extract the feature of mel-spectrogram, the size is 40x500
 ### 2. Encapsulating data feature to Dataset  
 Encapsulating the features extracted in the previous step into Dataset class.  
 ### 3. Triplet Wrapper
+Encapsulating the Dataset to DataLoader for next step iteration.  
 
 
-### Code structure
+### Code structure  
+- **data_prepare.py**  
+    - *Dcase18TaskbData* class - Extract the mel-spectrogram from wav file and save it to h5 file.  
+- **datasets.py**  
+    - *DevSet* class - wrapper for a MNIST-like dataset, returning specify mode and device dataset.  
+- **datasets_wrapper.py**  
+    - *TripletDevSet* class - wrapper for a MNIST-like dataset, returning random triplets(anchor, positive, negative).  
+    - *BalancedBatchSampler* class - BatchSampler for DataLoader, randomly chooses n_classes and n_samples from each 
+    class of a MNIST like dataset.  
+- **mean_variance.py**  
+    - *TaskbStandarizer* class - calculating the mean and variance of the specified data, 
+    normalized the data with the specified mean and variance.
+- **transformer.py**
+    - *ToTensor* class - converting numpy to tensor.  
+    - *Normalize* class - normalizing data with given mean and variance.  
+        
