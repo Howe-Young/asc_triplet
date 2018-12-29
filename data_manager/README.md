@@ -34,6 +34,8 @@ Encapsulating the Dataset to DataLoader for next step iteration.
 
 
 ### Code structure  
+- **data_manager.cfg**
+    - the path of dataset.
 - **data_prepare.py**  
     - *Dcase18TaskbData* class - Extract the mel-spectrogram from wav file and save it to h5 file.  
 - **datasets.py**  
