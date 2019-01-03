@@ -104,12 +104,18 @@ colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
               '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
               '#bcbd22', '#17becf']
 
+from sklearn.manifold import TSNE
+
 
 def plot_embeddings(embeddings, targets, xlim=None, ylim=None, title=None):
     plt.figure(figsize=(10, 10))
+    tsne = TSNE(n_components=2, init='pca', random_state=0)
+    result = tsne.fit_transform(embeddings)
+
     for i in range(10):
         inds = np.where(targets == i)[0]
-        plt.scatter(embeddings[inds, 0], embeddings[inds, 1], c=colors[i])
+
+        plt.scatter(result[inds, 0], result[inds, 1], c=colors[i])
 
     if xlim:
         plt.xlim(xlim[0], xlim[1])
@@ -120,10 +126,10 @@ def plot_embeddings(embeddings, targets, xlim=None, ylim=None, title=None):
         plt.title(title)
     plt.show()
 
-def extract_embeddings(dataloader, model):
+def extract_embeddings(dataloader, model, k_dims):
     with torch.no_grad():
         model.eval()
-        embeddings = np.zeros([len(dataloader.dataset), 2])
+        embeddings = np.zeros([len(dataloader.dataset), k_dims])
         labels = np.zeros(len(dataloader.dataset))
         k = 0
         for images, target in dataloader:
