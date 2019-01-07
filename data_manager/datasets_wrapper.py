@@ -10,6 +10,9 @@ tripletDataset class: wrapper for Taskb_Development_set-like dataset, return ran
 """
 
 class TripletDevSet(Dataset):
+    """
+    triplets wrapper, return triplets
+    """
     def __init__(self, mode='train', device='a', transform=None):
         self.mode = mode
         self.device = device
@@ -59,6 +62,9 @@ class TripletDevSet(Dataset):
 
 
 class BalanceBatchSampler(BatchSampler):
+    """
+    batch sampler, randomly select n_classes, and n_samples each class
+    """
     def __init__(self, dataset, n_classes, n_samples):
         self.labels = dataset.labels
         self.labels_set = list(set(self.labels))
@@ -91,16 +97,32 @@ class BalanceBatchSampler(BatchSampler):
         return len(self.dataset) // self.batch_size
 
 
-if __name__ == '__main__':
+class DatasetWrapper(Dataset):
+    def __init__(self, data, labels, transform=None):
+        self.data = data
+        self.labels = labels
+        self.transform = transform
+
+    def __getitem__(self, index):
+        data_, label_ = self.data[index], self.labels[index]
+        if self.transform:
+            data_, label_ = self.transform((data_, label_))
+        return data_, label_
+
+    def __len__(self):
+        return len(self.labels)
+
+
+# if __name__ == '__main__':
     # triplet_dataset = TripletDevSet(mode='train', device='b')
     # triplet_loader = DataLoader(dataset=triplet_dataset, batch_size=128, shuffle=True, num_workers=1)
     # for batch_id, (data, label) in enumerate(triplet_loader):
     #     print('batch id: ', batch_id)
     #     print('triplet data size: ', data[0].size(), data[1].size(), data[2].size())
     #     print('every batch first three labels: ', label[0][0].item(), label[1][0].item(), label[2][0].item())
-    dev_set = DevSet(mode='train', device='b')
-    batch_sampler = BalanceBatchSampler(dataset=dev_set, n_classes=10, n_samples=6)
-    loader = DataLoader(dataset=dev_set, batch_sampler=batch_sampler, num_workers=1)
-    for batch_id, data in enumerate(loader):
-        print('batch id: ', batch_id)
-        print('data: ', data[1])
+    # dev_set = DevSet(mode='train', device='b')
+    # batch_sampler = BalanceBatchSampler(dataset=dev_set, n_classes=10, n_samples=6)
+    # loader = DataLoader(dataset=dev_set, batch_sampler=batch_sampler, num_workers=1)
+    # for batch_id, data in enumerate(loader):
+    #     print('batch id: ', batch_id)
+    #     print('data: ', data[1])
