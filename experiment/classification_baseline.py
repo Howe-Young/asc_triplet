@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 import os
 from networks import vggish_bn
 from losses import OnlineTripletLoss
-from utils import RandomNegativeTripletSelector
+from utils.selector import *
 from metrics import AverageNoneZeroTripletsMetric, AccumulatedAccuracyMetric
 import torch.optim as optim
 from torch.optim import lr_scheduler
