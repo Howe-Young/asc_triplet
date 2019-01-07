@@ -23,3 +23,11 @@ class Normalize(object):
         data = np.transpose(data, [0, 2, 1])
 
         return data, sample[1]
+
+
+class Transpose(object):
+    def __call__(self, sample):
+        data = sample[0]
+        data = np.squeeze(data)
+        data = np.transpose(data, [1, 0])
+        return data, sample[1]
