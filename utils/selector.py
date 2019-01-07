@@ -97,49 +97,6 @@ def SemihardNegativeTripletSelector(margin, cpu=False):
     return FunctionNegativeTripletSelector(margin=margin, negative_selection_fn=lambda x: semihard_negative(x, margin), cpu=cpu)
 
 
-# visualization module
-import matplotlib.pyplot as plt
-asc_classes = ['0', '1', '2', '3', '4', '5', '6', '7','8', '9']
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf']
-
-from sklearn.manifold import TSNE
-
-
-def plot_embeddings(embeddings, targets, xlim=None, ylim=None, title=None):
-    plt.figure(figsize=(10, 10))
-    tsne = TSNE(n_components=2, init='pca', random_state=0)
-    result = tsne.fit_transform(embeddings)
-
-    for i in range(10):
-        inds = np.where(targets == i)[0]
-
-        plt.scatter(result[inds, 0], result[inds, 1], c=colors[i])
-
-    if xlim:
-        plt.xlim(xlim[0], xlim[1])
-    if ylim:
-        plt.ylim(ylim[0], ylim[1])
-    plt.legend(asc_classes)
-    if title:
-        plt.title(title)
-    plt.show()
-
-def extract_embeddings(dataloader, model, k_dims):
-    with torch.no_grad():
-        model.eval()
-        embeddings = np.zeros([len(dataloader.dataset), k_dims])
-        labels = np.zeros(len(dataloader.dataset))
-        k = 0
-        for images, target in dataloader:
-            images = images.cuda()
-            embeddings[k:k+len(images)] = model.get_embeddings(images).data.cpu().numpy()
-            labels[k:k+len(images)] = target.numpy()
-            k += len(images)
-        return embeddings, labels
-
-
 if __name__ == '__main__':
     from data_manager.datasets_wrapper import BalanceBatchSampler
     from data_manager.datasets import DevSet
