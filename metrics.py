@@ -41,7 +41,7 @@ class AccumulatedAccuracyMetric(Metric):
         return 100 * float(self.correct) / self.total
 
     def name(self):
-        return 'Accuracy'
+        return 'acc'
 
 
 class AverageNoneZeroTripletsMetric(Metric):
@@ -63,4 +63,4 @@ class AverageNoneZeroTripletsMetric(Metric):
         return np.mean(self.values)
 
     def name(self):
-        return 'Average nonzero triplets'
+        return 'nonzeros'
