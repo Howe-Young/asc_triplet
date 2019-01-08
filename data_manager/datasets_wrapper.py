@@ -80,7 +80,7 @@ class BalanceBatchSampler(BatchSampler):
 
     def __iter__(self):
         self.count = 0
-        while self.count + self.batch_size < len(self.dataset):
+        while self.count + self.batch_size <= len(self.dataset):
             classes = np.random.choice(self.labels_set, self.n_classes, replace=False)
             indices = []
             for class_ in classes:
@@ -121,7 +121,7 @@ class DatasetWrapper(Dataset):
     #     print('triplet data size: ', data[0].size(), data[1].size(), data[2].size())
     #     print('every batch first three labels: ', label[0][0].item(), label[1][0].item(), label[2][0].item())
     # dev_set = DevSet(mode='train', device='b')
-    # batch_sampler = BalanceBatchSampler(dataset=dev_set, n_classes=10, n_samples=6)
+    # batch_sampler = BalanceBatchSampler(dataset=dev_set, n_classes=10, n_samples=7)
     # loader = DataLoader(dataset=dev_set, batch_sampler=batch_sampler, num_workers=1)
     # for batch_id, data in enumerate(loader):
     #     print('batch id: ', batch_id)
