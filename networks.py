@@ -130,7 +130,7 @@ class embedding_net_shallow(nn.Module):
         # hidden is a tuple, include (h_n, c_n)
         # h_n shape is: (batch, num_layers * num_directions, hidden_size)
         # c_n shape is: (batch, num_layers * num_directions, hidden_size)
-        return torch.cat((out[:, 0, :], out[:, -1, :]), dim=1)
+        return torch.cat((out[:, 0, :], out[:, -1, :]), dim=1) # return first time step concat last time step
 
     def get_embeddings(self, x):
         return self.forward(x)
@@ -139,7 +139,7 @@ class embedding_net_shallow(nn.Module):
 class classifier(nn.Module):
     def __init__(self):
         super(classifier, self).__init__()
-        self.fc = nn.Linear(in_features=64, out_features=10)
+        self.fc = nn.Linear(in_features=128, out_features=10)
 
     def forward(self, x):
         x = self.fc(x)
