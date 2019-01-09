@@ -2,8 +2,8 @@ import torch
 import numpy as np
 
 
-def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs, log_interval, metrics=[], start_epoch=0,
-        train_hist=None, val_hist=None, ckpter=None, logging=None):
+def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs, log_interval, metrics=[],
+        start_epoch=0, train_hist=None, val_hist=None, ckpter=None, logging=None):
     """
     fit model and test model
     :param train_loader:
