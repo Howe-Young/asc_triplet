@@ -43,7 +43,7 @@ class CheckPoint(object):
         full_path = save_path if save_path else self._get_save_path(epoch, monitor, loss_acc)
         torch.save({
             'epoch': epoch,
-            'mode_state_dict': self.model.state_dict(),
+            'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict() if self.optimizer else None,
             'rng_state': torch.cuda.get_rng_state(),
             'histories': self.histories,
