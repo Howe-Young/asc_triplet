@@ -22,8 +22,8 @@ from utils.utilities import *
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, n_epochs=100, n_classes=10, n_samples=12,
-                              margin=0.3, log_interval=50, log_level="INFO", k=3):
+def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, classify_epochs=100,
+                              n_classes=10, n_samples=12, margin=0.3, log_interval=50, log_level="INFO", k=3):
     """
     knn as classifier.
     :param device:
@@ -34,6 +34,11 @@ def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
     :param k: kNN parameter
     :return:
     """
+    SEED = 0
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
+    np.random.seed(SEED)
+
     kwargs = locals()
     log_file = '{}/ckpt/hard_triplet_with_knn_exp/{}.log'.format(ROOT_DIR, ckpt_prefix)
     if not os.path.exists(os.path.dirname(log_file)):
@@ -99,20 +104,48 @@ def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
         logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, val_hist.name, str(val_hist.recent)))
         ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=val_hist.recent)
 
+    # train classifier using learned embeddings.
+    classify_model = networks.classifier()
+    classify_model = classify_model.cuda()
+    classify_loss_fn = nn.CrossEntropyLoss()
+    classify_optimizer = optim.Adam(classify_model.parameters(), lr=lr)
+    classify_scheduler = lr_scheduler.StepLR(optimizer=classify_optimizer, step_size=30, gamma=0.5)
+    classify_train_hist = History(name='classify_train/a')
+    classify_val_hist = History(name='classify_val/a')
+    classify_ckpter = CheckPoint(model=classify_model, optimizer=classify_optimizer,
+                                 path='{}/ckpt/hard_triplet_with_knn_exp'.format(ROOT_DIR),
+                                 prefix=ckpt_prefix, interval=1, save_num=1)
+    # reload best embedding model
+    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='hard_triplet_with_knn_exp').select_best(run=ckpt_prefix).selected_ckpt
+    model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
+
+    train_embedding, train_labels = extract_embeddings(train_batch_loader, model, 128)
+    test_embedding, test_labels = extract_embeddings(test_batch_loader, model, 128)
+
+    classify_train_dataset = DatasetWrapper(data=train_embedding, labels=train_labels, transform=ToTensor())
+    classify_test_dataset = DatasetWrapper(data=test_embedding, labels=test_labels, transform=ToTensor())
+    classify_train_loader = DataLoader(dataset=classify_train_dataset, batch_size=128, shuffle=True, num_workers=1)
+    classify_test_loader = DataLoader(dataset=classify_test_dataset, batch_size=128, shuffle=False, num_workers=1)
+
+    fit(train_loader=classify_train_loader, val_loader=classify_test_loader, model=classify_model,
+        loss_fn=classify_loss_fn, optimizer=classify_optimizer, scheduler=classify_scheduler, n_epochs=classify_epochs,
+        log_interval=log_interval, metrics=[AccumulatedAccuracyMetric()], train_hist=classify_train_hist,
+        val_hist=classify_val_hist, ckpter=classify_ckpter, logging=logging)
+
 
 if __name__ == '__main__':
 
     kwargs = {
-        'ckpt_prefix': 'Run01',
-        'device': '0',
+        'ckpt_prefix': 'Run03',
+        'device': '2',
         'lr': 1e-3,
-        'embedding_epochs': 10,
-        'n_epochs': 50,
+        'embedding_epochs': 1,
+        'classify_epochs': 5,
         'n_classes': 10,
         'n_samples': 12,
         'margin': 1.0,
         'log_interval': 80,
-        'k': 1
+        'k': 3
     }
 
     hard_triplet_with_knn_exp(**kwargs)
