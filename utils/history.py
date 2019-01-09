@@ -22,7 +22,8 @@ class History(object):
     def add(self, logs, epoch):
         self.recent = logs
         self.epoch.append(epoch)
-        self.loss.append(logs['loss'])
+        if 'loss' in logs.keys():
+            self.loss.append(logs['loss'])
         if 'acc' in logs.keys():
             self.acc.append(logs['acc'])
         if 'nonzeros' in logs.keys():
@@ -37,11 +38,11 @@ class History(object):
         else:
             self.axes = []
             plt.figure()
-            num = int(len(self.acc) != 0) + (len(self.nonzerostriplets) != 0) + (len(self.eer) != 0) + 1
-            print("num is: ", num)
+            num = int((len(self.acc) != 0) + (len(self.nonzerostriplets) != 0) + (len(self.eer) != 0) +
+                      (len(self.loss) != 0))
+
             for i in range(num):
                 self.axes.append(plt.subplot(num, 1, i + 1))
-
 
     def _get_tick(self):
         tick_max = np.max(self.epoch)
@@ -59,12 +60,13 @@ class History(object):
         """
         self.set_axes(axes=axes)
         ticks = self._get_tick()
-        cnt = 1
+        cnt = 0
         if len(self.loss) != 0:
-            self.axes[0].plot(self.epoch, self.loss)
-            self.axes[0].legend([self.name + '/loss'])
-            self.axes[0].set_xticks(ticks)
-            self.axes[0].set_xticklabels([str(e) for e in ticks])
+            self.axes[cnt].plot(self.epoch, self.loss)
+            self.axes[cnt].legend([self.name + '/loss'])
+            self.axes[cnt].set_xticks(ticks)
+            self.axes[cnt].set_xticklabels([str(e) for e in ticks])
+            cnt += 1
         if len(self.acc) != 0:
             self.axes[cnt].plot(self.epoch, self.acc)
             self.axes[cnt].legend([self.name + '/acc'])
