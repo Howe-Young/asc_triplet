@@ -12,7 +12,7 @@ from utils.selector import *
 from metrics import *
 import torch.optim as optim
 from torch.optim import lr_scheduler
-from trainer import fit
+from trainer import *
 import torch.nn as nn
 from verification import *
 import logging
@@ -69,36 +69,35 @@ def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.5)
 
-    fit(train_loader=train_batch_loader, val_loader=test_batch_loader, model=model, loss_fn=loss_fn,
-        optimizer=optimizer, scheduler=scheduler, n_epochs=embedding_epochs, log_interval=log_interval,
-        metrics=[AverageNoneZeroTripletsMetric()])
+    # fit(train_loader=train_batch_loader, val_loader=test_batch_loader, model=model, loss_fn=loss_fn,
+    #     optimizer=optimizer, scheduler=scheduler, n_epochs=embedding_epochs, log_interval=log_interval,
+    #     metrics=[AverageNoneZeroTripletsMetric()])
+    train_hist = History(name='train/a')
+    val_hist = History(name='test/a')
+    ckpter = CheckPoint(model=model, optimizer=optimizer, path='{}/ckpt/hard_triplet_with_knn_exp'.format(ROOT_DIR),
+                        prefix=ckpt_prefix, interval=1, save_num=1)
 
-    # verification(model=model)
-    train_embedding_tl, train_labels_tl = extract_embeddings(train_batch_loader, model, 64)
-    # plot_embeddings(embeddings=train_embedding_tl, targets=train_labels_tl, title='train set')
-    test_embedding_tl, test_labels_tl = extract_embeddings(test_batch_loader, model, 64)
-    # plot_embeddings(embeddings=test_embedding_tl, targets=test_labels_tl, title='test set')
+    for epoch in range(1, embedding_epochs + 1):
+        scheduler.step()
+        train_loss, metrics = train_epoch(train_loader=train_batch_loader, model=model, loss_fn=loss_fn,
+                                          optimizer=optimizer, log_interval=log_interval,
+                                          metrics=[AverageNoneZeroTripletsMetric()])
+        train_logs = dict()
+        train_logs['loss'] = train_loss
+        for metric in metrics:
+            train_logs[metric.name()] = metric.value()
+        train_hist.add(logs=train_logs, epoch=epoch)
 
-    distance_matrix = get_distance_matrix2(test_embedding_tl, train_embedding_tl)
-    sorted_index = np.argsort(distance_matrix, axis=1)
-    predict_labels = []
-    for i in range(len(test_embedding_tl)):
-        class_cnt = np.zeros([10])
-        k_neighbor = train_labels_tl[sorted_index[i]]
-        for j in range(k):
-            # print(k_neighbor[j])
-            class_cnt[int(k_neighbor[j])] += 1
-        predict_labels.append(np.max(class_cnt))
-    # print("test_labels:", test_labels_tl, 'len: ', len(test_labels_tl))
-    # print("predict_labels: ", predict_labels)
-    # print('len', len(predict_labels))
-    predict_labels = np.array(predict_labels)
-    # print(type(test_labels_tl))
-    test_acc = (test_labels_tl == predict_labels).sum() / len(test_labels_tl)
-    print("Test Accuracy: ", test_acc)
+        test_acc = kNN(model=model, train_loader=train_batch_loader, test_loader=test_batch_loader, k=k)
+        test_logs = {'acc': test_acc}
+        val_hist.add(logs=test_logs, epoch=epoch)
 
-
-
+        train_hist.clear()
+        train_hist.plot()
+        val_hist.plot()
+        logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, train_hist.name, str(train_hist.recent)))
+        logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, val_hist.name, str(val_hist.recent)))
+        ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=val_hist.recent)
 
 
 if __name__ == '__main__':
@@ -113,7 +112,7 @@ if __name__ == '__main__':
         'n_samples': 12,
         'margin': 1.0,
         'log_interval': 80,
-        'k': 5
+        'k': 1
     }
 
     hard_triplet_with_knn_exp(**kwargs)
