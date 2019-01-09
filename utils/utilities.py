@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import os
 
 
 # visualization module
@@ -55,3 +56,45 @@ def get_distance_matrix2(matrix1, matrix2):
     distance_matrix = -2 * np.dot(matrix1, np.transpose(matrix2)) + (matrix1 ** 2).sum(axis=1).reshape(-1, 1) + \
                       (matrix2 ** 2).sum(axis=1).reshape(1, -1)
     return distance_matrix
+
+
+class Reporter(object):
+    def __init__(self, ckpt_root, exp, ckpt_file=None):
+        self.ckpt_root = ckpt_root
+        self.exp_path = os.path.join(self.ckpt_root, exp)
+        self.run_list = os.listdir(self.exp_path)
+        self.selected_ckpt = None
+        self.selected_epoch = None
+        self.selected_log = None
+        self.selected_run = None
+
+    def select_best(self, run=""):
+
+        """
+        set self.selected_run, self.selected_ckpt, self.selected_epoch
+        :param run:
+        :return:
+        """
+
+        matched = []
+        for fname in self.run_list:
+            if fname.startswith(run) and fname.endswith('tar'):
+                matched.append(fname)
+
+        acc = []
+        import re
+        for s in matched:
+            acc_str = re.search('acc_(.*)\.tar', s).group(1)
+            acc.append(float(acc_str))
+
+        best_idx = np.argmax(acc)
+        best_fname = matched[best_idx]
+
+        self.selected_run = best_fname.split(',')[0]
+        self.selected_epoch = int(re.search('Epoch_(.*),acc', best_fname).group(1))
+
+        ckpt_file = os.path.join(self.exp_path, best_fname)
+
+        self.selected_ckpt = ckpt_file
+
+        return self
