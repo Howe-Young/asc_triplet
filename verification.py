@@ -115,6 +115,29 @@ def EER(distance, target, show_fig=False):
     return FAR[EER_index]
 
 
+from utils.utilities import *
+
+
+def kNN(model, train_loader, test_loader, k=3):
+
+    train_embedding, train_labels = extract_embeddings(train_loader, model, 64)
+    test_embedding, test_labels = extract_embeddings(test_loader, model, 64)
+
+    distance_matrix = get_distance_matrix2(test_embedding, train_embedding)
+    sorted_index = np.argsort(distance_matrix, axis=1)
+    predict_labels = []
+    for i in range(len(test_embedding)):
+        class_cnt = np.zeros([10])
+        k_neighbor = train_labels[sorted_index[i]]
+        for j in range(k):
+            class_cnt[int(k_neighbor[j])] += 1
+        predict_labels.append(np.argmax(class_cnt))
+    predict_labels = np.array(predict_labels)
+    # test_acc = (test_labels == predict_labels).sum() / len(test_labels)
+    test_acc = np.mean(test_labels == predict_labels)
+    return test_acc
+
+
 if __name__ == '__main__':
     model = networks.embedding_net_shallow()
     model = model.cuda()
