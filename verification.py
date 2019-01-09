@@ -120,8 +120,8 @@ from utils.utilities import *
 
 def kNN(model, train_loader, test_loader, k=3):
 
-    train_embedding, train_labels = extract_embeddings(train_loader, model, 64)
-    test_embedding, test_labels = extract_embeddings(test_loader, model, 64)
+    train_embedding, train_labels = extract_embeddings(train_loader, model, 128)
+    test_embedding, test_labels = extract_embeddings(test_loader, model, 128)
 
     distance_matrix = get_distance_matrix2(test_embedding, train_embedding)
     sorted_index = np.argsort(distance_matrix, axis=1)
