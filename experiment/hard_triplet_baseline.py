@@ -18,6 +18,7 @@ from verification import *
 import logging
 from utils.history import *
 from utils.checkpoint import *
+from utils.utilities import *
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
