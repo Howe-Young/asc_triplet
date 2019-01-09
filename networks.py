@@ -4,6 +4,7 @@ some networks
 """
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
 
 # TODO better network(cnn and lstm)
 
@@ -129,7 +130,7 @@ class embedding_net_shallow(nn.Module):
         # hidden is a tuple, include (h_n, c_n)
         # h_n shape is: (batch, num_layers * num_directions, hidden_size)
         # c_n shape is: (batch, num_layers * num_directions, hidden_size)
-        return out[:, -1, :]
+        return torch.cat((out[:, 0, :], out[:, -1, :]), dim=1)
 
     def get_embeddings(self, x):
         return self.forward(x)
