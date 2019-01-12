@@ -22,7 +22,7 @@ from utils.utilities import *
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, classify_epochs=100,
+def batch_hard_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, classify_epochs=100,
                            n_classes=10, n_samples=12, margin=0.3, log_interval=50, log_level="INFO", k=3, squared=False):
     """
     knn as classifier.
@@ -40,7 +40,7 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
     np.random.seed(SEED)
 
     kwargs = locals()
-    log_file = '{}/ckpt/batch_all_with_knn_exp/{}.log'.format(ROOT_DIR, ckpt_prefix)
+    log_file = '{}/ckpt/batch_hard_with_knn_exp/{}.log'.format(ROOT_DIR, ckpt_prefix)
     if not os.path.exists(os.path.dirname(log_file)):
         os.makedirs(os.path.dirname(log_file))
     logging.basicConfig(filename=log_file, level=getattr(logging, log_level.upper(), None))
@@ -70,7 +70,7 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
 
     model = networks.embedding_net_shallow()
     model = model.cuda()
-    loss_fn = HardTripletLoss(margin=margin, hardest=False, squared=squared)
+    loss_fn = HardTripletLoss(margin=margin, hardest=True, squared=squared)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.5)
 
@@ -79,7 +79,7 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
     #     metrics=[AverageNoneZeroTripletsMetric()])
     train_hist = History(name='train/a')
     val_hist = History(name='test/a')
-    ckpter = CheckPoint(model=model, optimizer=optimizer, path='{}/ckpt/batch_all_with_knn_exp'.format(ROOT_DIR),
+    ckpter = CheckPoint(model=model, optimizer=optimizer, path='{}/ckpt/batch_hard_with_knn_exp'.format(ROOT_DIR),
                         prefix=ckpt_prefix, interval=1, save_num=1)
 
     for epoch in range(1, embedding_epochs + 1):
@@ -113,10 +113,10 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
     classify_train_hist = History(name='classify_train/a')
     classify_val_hist = History(name='classify_val/a')
     classify_ckpter = CheckPoint(model=classify_model, optimizer=classify_optimizer,
-                                 path='{}/ckpt/batch_all_with_knn_exp'.format(ROOT_DIR),
+                                 path='{}/ckpt/batch_hard_with_knn_exp'.format(ROOT_DIR),
                                  prefix=ckpt_prefix, interval=1, save_num=1)
     # reload best embedding model
-    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='batch_all_with_knn_exp').select_best(run=ckpt_prefix).selected_ckpt
+    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='batch_hard_with_knn_exp').select_best(run=ckpt_prefix).selected_ckpt
     model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
 
     train_embedding, train_labels = extract_embeddings(train_batch_loader, model, 128)
@@ -149,4 +149,4 @@ if __name__ == '__main__':
         'squared': False
     }
 
-    batch_all_with_knn_exp(**kwargs)
+    batch_hard_with_knn_exp(**kwargs)
