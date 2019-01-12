@@ -97,6 +97,31 @@ def SemihardNegativeTripletSelector(margin, cpu=False):
     return FunctionNegativeTripletSelector(margin=margin, negative_selection_fn=lambda x: semihard_negative(x, margin), cpu=cpu)
 
 
+class BatchAllTripletSelector(object):
+    """
+    combination all samples in one mini-batch.
+    return index of triplets.
+    """
+    def __init__(self, margin):
+        self.margin = margin
+
+    def get_triplets(self, embeddings, labels):
+        labels = labels.data.numpy()
+        triplets = []
+
+        for label in set(labels):
+            label_mask = (labels == label)
+            label_indices = np.where(label_mask)[0]
+            if len(label_indices) < 2:
+                continue
+            anchor_positives = list(combinations(label_indices, 2))  # All anchor-positive pairs
+            anchor_positives = np.array(anchor_positives)
+            negative_indices = np.where(np.logical_not(label_mask))[0]
+
+
+
+
+
 if __name__ == '__main__':
     from data_manager.datasets_wrapper import BalanceBatchSampler
     from data_manager.datasets import DevSet
