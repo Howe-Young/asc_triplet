@@ -23,7 +23,8 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, classify_epochs=100,
-                              n_classes=10, n_samples=12, margin=0.3, log_interval=50, log_level="INFO", k=3):
+                              n_classes=10, n_samples=12, margin=0.3, log_interval=50, log_level="INFO", k=3,
+                              embed_dims=64, embed_net='vgg'):
     """
     knn as classifier.
     :param device:
@@ -68,7 +69,13 @@ def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
     test_batch_sampler = BalanceBatchSampler(dataset=test_dataset, n_classes=n_classes, n_samples=n_samples)
     test_batch_loader = DataLoader(dataset=test_dataset, batch_sampler=test_batch_sampler, num_workers=1)
 
-    model = networks.embedding_net_shallow()
+    if embed_net == 'vgg':
+        model = networks.vggish_bn()
+    elif embed_net == 'shallow':
+        model = networks.embedding_net_shallow()
+    else:
+        print("{} network doesn't exist.".format(embed_net))
+        return
     model = model.cuda()
     loss_fn = OnlineTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin))
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -93,7 +100,7 @@ def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
             train_logs[metric.name()] = metric.value()
         train_hist.add(logs=train_logs, epoch=epoch)
 
-        test_acc = kNN(model=model, train_loader=train_batch_loader, test_loader=test_batch_loader, k=k)
+        test_acc = kNN(model=model, train_loader=train_batch_loader, test_loader=test_batch_loader, k=k, embed_dims=embed_dims)
         test_logs = {'acc': test_acc}
         val_hist.add(logs=test_logs, epoch=epoch)
 
@@ -119,8 +126,8 @@ def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
     best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='hard_triplet_with_knn_exp').select_best(run=ckpt_prefix).selected_ckpt
     model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
 
-    train_embedding, train_labels = extract_embeddings(train_batch_loader, model, 128)
-    test_embedding, test_labels = extract_embeddings(test_batch_loader, model, 128)
+    train_embedding, train_labels = extract_embeddings(train_batch_loader, model, embed_dims)
+    test_embedding, test_labels = extract_embeddings(test_batch_loader, model, embed_dims)
 
     classify_train_dataset = DatasetWrapper(data=train_embedding, labels=train_labels, transform=ToTensor())
     classify_test_dataset = DatasetWrapper(data=test_embedding, labels=test_labels, transform=ToTensor())
@@ -136,8 +143,8 @@ def hard_triplet_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
 if __name__ == '__main__':
 
     kwargs = {
-        'ckpt_prefix': 'Run03',
-        'device': '2',
+        'ckpt_prefix': 'Run05',
+        'device': '0',
         'lr': 1e-3,
         'embedding_epochs': 1,
         'classify_epochs': 5,
@@ -145,7 +152,9 @@ if __name__ == '__main__':
         'n_samples': 12,
         'margin': 1.0,
         'log_interval': 80,
-        'k': 3
+        'k': 3,
+        'embed_dims': 64,
+        'embed_net': 'vgg'
     }
 
     hard_triplet_with_knn_exp(**kwargs)
