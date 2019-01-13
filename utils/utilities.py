@@ -33,6 +33,7 @@ def plot_embeddings(embeddings, targets, xlim=None, ylim=None, title=None):
         plt.title(title)
     plt.show()
 
+
 def extract_embeddings(dataloader, model, k_dims):
     with torch.no_grad():
         model.eval()
