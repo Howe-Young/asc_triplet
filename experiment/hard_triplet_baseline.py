@@ -101,7 +101,7 @@ def hard_triplet_baseline_exp(device='3', ckpt_prefix='Run01', lr=1e-3, n_epochs
 if __name__ == '__main__':
 
     kwargs = {
-        'device': '2',
+        'device': '0',
         'lr': 1e-3,
         'n_epochs': 5,
         'n_classes': 10,
