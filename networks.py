@@ -13,36 +13,38 @@ class vggish_bn(nn.Module):
         super(vggish_bn, self).__init__()
 
         # convolution block 1
-        self.conv1_1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=(3, 3), padding=1)
-        self.bn1_1 = nn.BatchNorm2d(32)
-        self.conv1_2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=(3, 3), padding=1)
-        self.bn1_2 = nn.BatchNorm2d(32)
+        self.conv1_1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(3, 3), padding=1)
+        self.bn1_1 = nn.BatchNorm2d(8)
+        self.conv1_2 = nn.Conv2d(in_channels=8, out_channels=8, kernel_size=(3, 3), padding=1)
+        self.bn1_2 = nn.BatchNorm2d(8)
         self.pool1_1 = nn.MaxPool2d(kernel_size=(2, 2))
 
         # convolution block 2
-        self.conv2_1 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3), padding=1)
-        self.bn2_1 = nn.BatchNorm2d(64)
-        self.conv2_2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), padding=1)
-        self.bn2_2 = nn.BatchNorm2d(64)
+        self.conv2_1 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(3, 3), padding=1)
+        self.bn2_1 = nn.BatchNorm2d(16)
+        self.conv2_2 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(3, 3), padding=1)
+        self.bn2_2 = nn.BatchNorm2d(16)
         self.pool2_1 = nn.MaxPool2d(kernel_size=(2, 2))
 
         # convolution block 3
-        self.conv3_1 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding=1)
-        self.bn3_1 = nn.BatchNorm2d(128)
-        self.conv3_2 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(3, 3), padding=1)
-        self.bn3_2 = nn.BatchNorm2d(128)
+        self.conv3_1 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=(3, 3), padding=1)
+        self.bn3_1 = nn.BatchNorm2d(32)
+        self.conv3_2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=(3, 3), padding=1)
+        self.bn3_2 = nn.BatchNorm2d(32)
         self.pool3_1 = nn.MaxPool2d(kernel_size=(2, 2))
 
         # convolution block 4
-        self.conv4_1 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding=1)
-        self.bn4_1 = nn.BatchNorm2d(256)
-        self.conv4_2 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=(3, 3), padding=1)
-        self.bn4_2 = nn.BatchNorm2d(256)
+        self.conv4_1 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3), padding=1)
+        self.bn4_1 = nn.BatchNorm2d(64)
+        self.conv4_2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), padding=1)
+        self.bn4_2 = nn.BatchNorm2d(64)
         self.pool4_1 = nn.MaxPool2d(kernel_size=(2, 2))
 
         # full connect layer
-        self.global_pool = nn.AvgPool2d(kernel_size=(2, 31))
-        self.fc1 = nn.Linear(256, 10)
+        self.lstm = nn.LSTM(input_size=64 * 2, hidden_size=64, num_layers=1, batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(128, 64)
+        # self.global_pool = nn.AvgPool2d(kernel_size=(2, 31))
+        # self.fc1 = nn.Linear(256, 10)
         # self.fc2 = nn.Linear(1024, 512)
         # self.fc3 = nn.Linear(512, 10)
 
@@ -84,14 +86,18 @@ class vggish_bn(nn.Module):
         x = self.pool4_1(x)
 
         # global Max pool
-        x = self.global_pool(x)
+        # x = self.global_pool(x)
 
         # full connect layer
-        x = x.view(-1, 256)
-        # x = F.relu(self.fc1(x))
-        # x = F.relu(self.fc2(x))
-        x = self.fc1(x)
+        x = x.view(-1, 64 * 2, 31)
+        x = x.permute(0, 2, 1)
+        out, hidden = self.lstm(x, None) # out shape (batch_size, time_step, hidden_size * num_directions)
+        out = torch.mean(out, dim=1) # out shape (batch_size, hidden_size * num_directions)
+        x = self.fc(out)
         return x
+
+    def get_embeddings(self, x):
+        return self.forward(x)
 
 
 class embedding_net_shallow(nn.Module):
@@ -130,7 +136,8 @@ class embedding_net_shallow(nn.Module):
         # hidden is a tuple, include (h_n, c_n)
         # h_n shape is: (batch, num_layers * num_directions, hidden_size)
         # c_n shape is: (batch, num_layers * num_directions, hidden_size)
-        return torch.cat((out[:, 0, :], out[:, -1, :]), dim=1) # return first time step concat last time step
+        # return torch.cat((out[:, 0, :], out[:, -1, :]), dim=1) # return first time step concat last time step
+        return torch.mean(out, dim=1)
 
     def get_embeddings(self, x):
         return self.forward(x)
@@ -139,7 +146,7 @@ class embedding_net_shallow(nn.Module):
 class classifier(nn.Module):
     def __init__(self):
         super(classifier, self).__init__()
-        self.fc = nn.Linear(in_features=128, out_features=10)
+        self.fc = nn.Linear(in_features=64, out_features=10)
 
     def forward(self, x):
         x = self.fc(x)
