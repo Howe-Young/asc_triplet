@@ -37,23 +37,27 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
         #     message += '\t{}: {}'.format(metric.name(), metric.value())
 
         # test stage
-        val_loss, metrics = test_epoch(val_loader, model, loss_fn, metrics)
-        val_loss /= len(val_loader)
-        val_logs = dict()
-        val_logs['loss'] = val_loss
-        for metric in metrics:
-            val_logs[metric.name()] = metric.value()
-        if val_hist is not None:
-            val_hist.add(logs=val_logs, epoch=epoch)
+        for key in val_loader.keys():
+            val_loss, metrics = test_epoch(val_loader[key], model, loss_fn, metrics)
+            val_loss /= len(val_loader[key])
+            val_logs = dict()
+            val_logs['loss'] = val_loss
+            for metric in metrics:
+                val_logs[metric.name()] = metric.value()
+            if val_hist is not None:
+                val_hist[key].add(logs=val_logs, epoch=epoch)
 
+        if val_hist is not None:
             train_hist.clear()
             train_hist.plot()
-            val_hist.plot()
+            for key in val_loader.keys():
+                val_hist[key].plot()
         if logging is not None:
             logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, train_hist.name, str(train_hist.recent)))
-            logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, val_hist.name, str(val_hist.recent)))
+            for key in val_loader.keys():
+                logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, val_hist[key].name, str(val_hist[key].recent)))
         if ckpter is not None:
-            ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=val_logs)
+            ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=val_hist['b'].recent)
         # message += '\nEpoch: {}/{}. Validation set: Average loss: {:.4f}'.format(epoch + 1, n_epochs, val_loss)
         # for metric in metrics:
         #     message += '\t{}: {}'.format(metric.name(), metric.value())
