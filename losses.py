@@ -8,14 +8,14 @@ import torch.nn.functional as F
 from utils.utilities import *
 
 
-class OnlineTripletLoss(nn.Module):
+class RandomHardTripletLoss(nn.Module):
     """
     online triplet loss
     Takes a batch of embeddings and corresponding labels.
     Triplets are generated using triplet_selector object that take embeddings and labels and return indices of triplets.
     """
     def __init__(self, margin, triplet_selector):
-        super(OnlineTripletLoss, self).__init__()
+        super(RandomHardTripletLoss, self).__init__()
         self.margin = margin
         self.triplet_selector = triplet_selector
 
