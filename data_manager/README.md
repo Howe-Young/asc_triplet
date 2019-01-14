@@ -26,7 +26,17 @@ A indicates training or testing data exclude p in device A
 
 ### 1. Extracting mel-spectrogram feature from raw wav file  
 Using librosa library extract the feature of mel-spectrogram, the size is 40x500, and save it to h5 file.
-    
+```
+[dcase17]
+dev_path = /home/songhongwei/data_home/DCASE2017-baseline-system/applications/data/TUT-acoustic-scenes-2017-development/
+eva_path = /home/songhongwei/data_home/DCASE2017-baseline-system/applications/data/TUT-acoustic-scenes-2017-evaluation/
+
+[logmel]
+sr = 44100
+n_fft = 1764
+hop_length = 882
+n_mels = 40
+```
 ### 2. Encapsulating data feature to Dataset  
 Encapsulating the features extracted in the previous step into Dataset class.  
 ### 3. Triplet Wrapper
