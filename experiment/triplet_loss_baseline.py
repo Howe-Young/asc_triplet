@@ -23,10 +23,10 @@ from experiment.xgb import xgb_cls
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, classify_epochs=100,
+def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, classify_epochs=100,
                            n_classes=10, n_samples=12, margin=0.3, log_interval=50, log_level="INFO", k=3,
                            squared=False, embed_dims=64, embed_net='vgg', is_train_embedding_model=False,
-                           using_pretrain=False, batch_size=128):
+                           using_pretrain=False, batch_size=128, select_method='batch_all'):
     """
     knn as classifier.
     :param device:
@@ -43,7 +43,7 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
     np.random.seed(SEED)
 
     kwargs = locals()
-    log_file = '{}/ckpt/batch_all_with_knn_exp/{}.log'.format(ROOT_DIR, ckpt_prefix)
+    log_file = '{}/ckpt/{}_with_knn_exp/{}.log'.format(ROOT_DIR, select_method, ckpt_prefix)
     if not os.path.exists(os.path.dirname(log_file)):
         os.makedirs(os.path.dirname(log_file))
     logging.basicConfig(filename=log_file, level=getattr(logging, log_level.upper(), None))
@@ -86,7 +86,7 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
             pt_scheduler = lr_scheduler.StepLR(optimizer=pt_optimizer, step_size=30, gamma=0.5)
             pt_train_hist = History(name='pretrain_train/a')
             pt_val_hist = History(name='pretrain_test/a')
-            pt_ckpter = CheckPoint(model=model, optimizer=pt_optimizer, path='{}/ckpt/batch_all_with_knn_exp'.format(ROOT_DIR),
+            pt_ckpter = CheckPoint(model=model, optimizer=pt_optimizer, path='{}/ckpt/{}_with_knn_exp'.format(ROOT_DIR, select_method),
                                    prefix=(ckpt_prefix + 'pretrain'), interval=1, save_num=1)
 
             for epoch in range(1, embedding_epochs + 1):
@@ -113,18 +113,27 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
                 logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, pt_val_hist.name, str(pt_val_hist.recent)))
                 pt_ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=pt_val_hist.recent)
 
-            best_pt_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='batch_all_with_knn_exp')\
-                .select_best(run=(ckpt_prefix + 'pretrain')).selected_ckpt
+            best_pt_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='{}_with_knn_exp'.\
+                                              format(select_method)).select_best(run=(ckpt_prefix + 'pretrain')).selected_ckpt
             model.load_state_dict(torch.load(best_pt_model_filename)['model_state_dict'])
             model.set_classify(False)
 
-        loss_fn = BatchAllTripletLoss(margin=margin, squared=squared)
+        if select_method == 'batch_all':
+            loss_fn = BatchAllTripletLoss(margin=margin, squared=squared)
+        elif select_method == 'batch_hard':
+            loss_fn = BatchHardTripletLoss(margin=margin, squared=squared)
+        elif select_method == 'random_hard':
+            loss_fn = RandomHardTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin))
+        else:
+            print("{} is not defined!".format(select_method))
+            return
+
         optimizer = optim.Adam(model.parameters(), lr=lr)
         scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.5)
 
         train_hist = History(name='train/a')
         val_hist = History(name='test/a')
-        ckpter = CheckPoint(model=model, optimizer=optimizer, path='{}/ckpt/batch_all_with_knn_exp'.format(ROOT_DIR),
+        ckpter = CheckPoint(model=model, optimizer=optimizer, path='{}/ckpt/{}_with_knn_exp'.format(ROOT_DIR, select_method),
                             prefix=ckpt_prefix, interval=1, save_num=1)
 
         for epoch in range(1, embedding_epochs + 1):
@@ -151,8 +160,8 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
             ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=val_hist.recent)
 
     # reload best embedding model
-    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='batch_all_with_knn_exp').select_best(
-        run=ckpt_prefix).selected_ckpt
+    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='{}_with_knn_exp'.\
+                                   format(select_method)).select_best(run=ckpt_prefix).selected_ckpt
     model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
 
     train_embedding, train_labels = extract_embeddings(train_batch_loader, model, embed_dims)
@@ -185,7 +194,8 @@ if __name__ == '__main__':
         'embed_net': 'vgg',
         'is_train_embedding_model': True,
         'using_pretrain': True,
-        'batch_size': 128
+        'batch_size': 128,
+        'select_method': 'batch_hard'
     }
 
-    batch_all_with_knn_exp(**kwargs)
+    triplet_loss_with_knn_exp(**kwargs)
