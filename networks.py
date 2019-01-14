@@ -6,12 +6,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-# TODO better network(cnn and lstm)
 
+# TODO better network(cnn and lstm)
 class vggish_bn(nn.Module):
-    def __init__(self):
+
+    def __init__(self, classify=False):
         super(vggish_bn, self).__init__()
 
+        self.classify = classify
         # convolution block 1
         self.conv1_1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(3, 3), padding=1)
         self.bn1_1 = nn.BatchNorm2d(8)
@@ -43,10 +45,7 @@ class vggish_bn(nn.Module):
         # full connect layer
         self.lstm = nn.LSTM(input_size=64 * 2, hidden_size=64, num_layers=1, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(128, 64)
-        # self.global_pool = nn.AvgPool2d(kernel_size=(2, 31))
-        # self.fc1 = nn.Linear(256, 10)
-        # self.fc2 = nn.Linear(1024, 512)
-        # self.fc3 = nn.Linear(512, 10)
+        self.cls = nn.Linear(64, 10)
 
     def forward(self, x):
         # block 1
@@ -85,19 +84,25 @@ class vggish_bn(nn.Module):
         x = F.relu(x)
         x = self.pool4_1(x)
 
-        # global Max pool
-        # x = self.global_pool(x)
-
         # full connect layer
         x = x.view(-1, 64 * 2, 31)
         x = x.permute(0, 2, 1)
         out, hidden = self.lstm(x, None) # out shape (batch_size, time_step, hidden_size * num_directions)
         out = torch.mean(out, dim=1) # out shape (batch_size, hidden_size * num_directions)
         x = self.fc(out)
+
+        # pretrain classification network
+        if self.classify:
+            x = F.relu(x)
+            x = self.cls(x)
+
         return x
 
     def get_embeddings(self, x):
         return self.forward(x)
+
+    def set_classify(self, classifiy):
+        self.classify = classifiy
 
 
 class embedding_net_shallow(nn.Module):
