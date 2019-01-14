@@ -25,7 +25,8 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, classify_epochs=100,
                            n_classes=10, n_samples=12, margin=0.3, log_interval=50, log_level="INFO", k=3,
-                           squared=False, embed_dims=64, embed_net='vgg', is_train_embedding_model=False):
+                           squared=False, embed_dims=64, embed_net='vgg', is_train_embedding_model=False,
+                           using_pretrain=False, batch_size=128):
     """
     knn as classifier.
     :param device:
@@ -67,10 +68,10 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
     train_batch_sampler = BalanceBatchSampler(dataset=train_dataset, n_classes=n_classes, n_samples=n_samples)
     train_batch_loader = DataLoader(dataset=train_dataset, batch_sampler=train_batch_sampler, num_workers=1)
 
-    test_batch_sampler = BalanceBatchSampler(dataset=test_dataset, n_classes=n_classes, n_samples=n_samples)
-    test_batch_loader = DataLoader(dataset=test_dataset, batch_sampler=test_batch_sampler, num_workers=1)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
+
     if embed_net == 'vgg':
-        model = networks.vggish_bn()
+        model = networks.vggish_bn(classify=using_pretrain)
     elif embed_net == 'shallow':
         model = networks.embedding_net_shallow()
     else:
@@ -79,7 +80,45 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
 
     model = model.cuda()
     if is_train_embedding_model:
-        loss_fn = HardTripletLoss(margin=margin, hardest=False, squared=squared)
+        if using_pretrain:
+            pt_loss_fn = nn.CrossEntropyLoss()
+            pt_optimizer = optim.Adam(model.parameters(), lr=lr)
+            pt_scheduler = lr_scheduler.StepLR(optimizer=pt_optimizer, step_size=30, gamma=0.5)
+            pt_train_hist = History(name='pretrain_train/a')
+            pt_val_hist = History(name='pretrain_test/a')
+            pt_ckpter = CheckPoint(model=model, optimizer=pt_optimizer, path='{}/ckpt/batch_all_with_knn_exp'.format(ROOT_DIR),
+                                   prefix=(ckpt_prefix + 'pretrain'), interval=1, save_num=1)
+
+            for epoch in range(1, embedding_epochs + 1):
+                pt_scheduler.step()
+                train_loss, metrics = train_epoch(train_loader=train_batch_loader, model=model, loss_fn=pt_loss_fn,
+                                                  optimizer=pt_optimizer, log_interval=log_interval,
+                                                  metrics=[AccumulatedAccuracyMetric()])
+                train_logs = {'loss': train_loss}
+                for metric in metrics:
+                    train_logs[metric.name()] = metric.value()
+                pt_train_hist.add(logs=train_logs, epoch=epoch)
+
+                test_loss, metrics = test_epoch(val_loader=test_loader, model=model, loss_fn=pt_loss_fn,
+                                                metrics=[AccumulatedAccuracyMetric()])
+                test_logs = {'loss': test_loss}
+                for metric in metrics:
+                    test_logs[metric.name()] = metric.value()
+                pt_val_hist.add(logs=test_logs, epoch=epoch)
+
+                pt_train_hist.clear()
+                pt_train_hist.plot()
+                pt_val_hist.plot()
+                logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, pt_train_hist.name, str(pt_train_hist.recent)))
+                logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, pt_val_hist.name, str(pt_val_hist.recent)))
+                pt_ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=pt_val_hist.recent)
+
+            best_pt_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='batch_all_with_knn_exp')\
+                .select_best(run=(ckpt_prefix + 'pretrain')).selected_ckpt
+            model.load_state_dict(torch.load(best_pt_model_filename)['model_state_dict'])
+            model.set_classify(False)
+
+        loss_fn = BatchAllTripletLoss(margin=margin, squared=squared)
         optimizer = optim.Adam(model.parameters(), lr=lr)
         scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.5)
 
@@ -99,7 +138,8 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
                 train_logs[metric.name()] = metric.value()
             train_hist.add(logs=train_logs, epoch=epoch)
 
-            test_acc = kNN(model=model, train_loader=train_batch_loader, test_loader=test_batch_loader, k=k)
+            # TODO sklearn knn
+            test_acc = kNN(model=model, train_loader=train_batch_loader, test_loader=test_loader, k=k)
             test_logs = {'acc': test_acc}
             val_hist.add(logs=test_logs, epoch=epoch)
 
@@ -111,30 +151,41 @@ def batch_all_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_e
             ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=val_hist.recent)
 
     # reload best embedding model
-    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='batch_all_with_knn_exp').select_best(run=ckpt_prefix).selected_ckpt
+    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='batch_all_with_knn_exp').select_best(
+        run=ckpt_prefix).selected_ckpt
     model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
 
     train_embedding, train_labels = extract_embeddings(train_batch_loader, model, embed_dims)
-    test_embedding, test_labels = extract_embeddings(test_batch_loader, model, embed_dims)
+    test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
 
     xgb_cls(train_data=train_embedding, train_label=train_labels, val_data=test_embedding, val_label=test_labels,
             exp_dir=os.path.dirname(log_file))
+
+    # TODO plot all curve
+    if using_pretrain:
+        pt_train_hist.plot()
+        pt_val_hist.plot()
 
 
 if __name__ == '__main__':
 
     kwargs = {
         'ckpt_prefix': 'Run02',
-        'device': '5',
+        'device': '3',
         'lr': 1e-3,
-        'embedding_epochs': 1,
-        'classify_epochs': 5,
+        'embedding_epochs': 3,
+        'classify_epochs': 3,
         'n_classes': 10,
         'n_samples': 12,
         'margin': 1.0,
         'log_interval': 80,
         'k': 3,
-        'squared': False
+        'squared': False,
+        'embed_dims': 64,
+        'embed_net': 'vgg',
+        'is_train_embedding_model': True,
+        'using_pretrain': True,
+        'batch_size': 128
     }
 
     batch_all_with_knn_exp(**kwargs)
