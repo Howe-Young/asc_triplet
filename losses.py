@@ -79,7 +79,11 @@ class BatchHardTripletLoss(nn.Module):
 
         # Combine biggest d(a, p) and smallest d(a, n) into final triplet loss
         triplet_loss = F.relu(hardest_positive_dist - hardest_negative_dist + self.margin)
-        num_hard_triplets = len(triplet_loss)
+
+        # count number of hard triplets (where triplet_loss > 0)
+        hard_triplets = torch.gt(triplet_loss, 1e-16).float()
+        num_hard_triplets = torch.sum(hard_triplets)
+
         triplet_loss = torch.mean(triplet_loss)
 
         return triplet_loss, num_hard_triplets
@@ -134,5 +138,4 @@ class BatchAllTripletLoss(nn.Module):
         num_hard_triplets = torch.sum(hard_triplets)
 
         triplet_loss = torch.sum(triplet_loss) / (num_hard_triplets + 1e-16)
-
         return triplet_loss, num_hard_triplets
