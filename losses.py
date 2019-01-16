@@ -139,3 +139,117 @@ class BatchAllTripletLoss(nn.Module):
 
         triplet_loss = torch.sum(triplet_loss) / (num_hard_triplets + 1e-16)
         return triplet_loss, num_hard_triplets
+
+class BatchAllWithOutlierTripletLoss(nn.Module):
+    def __init__(self, margin=1.0, squared=False, kernel_width=None):
+        super(BatchAllWithOutlierTripletLoss, self).__init__()
+
+        self.margin = margin
+        self.squared = squared
+        # beta == 1. / delta ** 2
+        self.kernel_width = kernel_width
+
+    def forward(self, embeddings, labels):
+        """
+
+        :param embeddings: tensor of shape (batch_size, embed_dim)
+        :param labels: tensor of shape (batch_size, )
+        :return: triplet_loss and number of triplets
+        """
+
+        pairwise_dist = pairwise_distance(embeddings, squared=self.squared)
+
+        with torch.no_grad():
+            if self.kernel_width is None:
+                delta, _ = pairwise_dist.topk(k=8, dim=1, largest=False)
+                gamma = 1 / 2 * (delta[:, -1] ** 2 + 1e-16)
+                # gaussian kernel, pairwise similarities
+                kernel_matrix = torch.exp(- torch.mul(pairwise_dist ** 2, gamma.view(-1, 1)))
+            else:
+                gamma = 1 / 2 * (self.kernel_width ** 2 + 1e-16)
+                # gaussian kernel, pairwise similarities
+                kernel_matrix = torch.exp(- torch.mul(pairwise_dist ** 2, gamma))
+
+            anchor_negative_mask = get_anchor_negative_triplet_mask(labels=labels).float()
+            # (batch_size,), sum over anchor-negative similarities
+            sum_neg = torch.sum(kernel_matrix * anchor_negative_mask, dim=1)
+            sum_all = torch.sum(kernel_matrix, dim=1) - kernel_matrix.diag()
+            # (batch_size,), ratio between anchor-negative distances and all distances for each anchor
+            outlier_prob = sum_neg / (sum_all + 1e-16)
+            outlier_prob.clamp_(min=1e-16, max=1-1e-16)
+
+            # count outlier num
+            logging.info('outlier prob >0.6 num {:3.0f}'.format(torch.sum(torch.gt(outlier_prob, 0.6).float()).item()))
+
+            # (batch_size, 1, 1), ready for broadcasting
+            inlier_prob = (1 - outlier_prob).view(-1, 1, 1)
+
+        # shape (batch_size, batch_size, 1)
+        anchor_positive_dist = pairwise_dist.unsqueeze(dim=2)
+        assert anchor_positive_dist.shape[2] == 1, "{}".format(anchor_positive_dist.shape)
+        # shape (batch_size, 1, batch_size)
+        anchor_negative_dist = pairwise_dist.unsqueeze(dim=1)
+        assert anchor_negative_dist.shape[1] == 1, "{}".format(anchor_negative_dist.shape)
+
+        # Compute a 3D tensor of size(batch_size, batch_size, batch_size)
+        # triplet_loss[i, j, k] will contain the triplet loss of anchor=i, pos=j, neg=k
+        # Uses broadcasting where the 1st argument has shape(batch_size, batch_size, 1)
+        # and the 2nd (batch_size, 1, batch_size)
+        triplet_loss = anchor_positive_dist - anchor_negative_dist + self.margin
+
+        # put to zero the invalid triplets
+        mask = get_triplet_mask(labels).float()
+        triplet_loss = triplet_loss * mask
+
+        # remove negative losses (i.e. the easy triplets)
+        triplet_loss = F.relu(triplet_loss)
+
+        # count number of hard triplets (where triplet_loss > 0)
+        hard_triplets = torch.gt(triplet_loss, 1e-16).float()
+        num_hard_triplets = torch.sum(hard_triplets)
+        assert num_hard_triplets > 1e-16
+
+        triplet_loss = torch.sum(triplet_loss * inlier_prob) / (num_hard_triplets + 1e-16)
+        return triplet_loss, num_hard_triplets
+
+
+class LargeMarginLoss(nn.Module):
+    """
+    Better to use large batch size
+    """
+    def __init__(self, margin=1.0, squared=False, kernel_width=1.0):
+        super(LargeMarginLoss, self).__init__()
+        self.margin = margin
+        self.squared = squared
+        # beta == 1. / delta ** 2
+        self.kernel_width = kernel_width
+
+    def forward(self, embeddings, labels):
+        pairwise_dist = pairwise_distance(embeddings, squared=self.squared)
+
+        with torch.no_grad():
+            gamma = 1 / 2 * (self.kernel_width ** 2 + 1e-16)
+
+            # calc nearest positive probability
+            gamma_pairwise_dist = torch.mul(pairwise_dist, - gamma)
+            anchor_positive_mask = get_anchor_positive_triplet_mask(labels)  # ByteTensor
+            gamma_pairwise_dist.masked_fill_(anchor_positive_mask ^ 1, float('-inf'))
+            nearest_positive_prob = F.softmax(gamma_pairwise_dist, dim=1)
+
+            # nearest negative probability
+            gamma_pairwise_dist2 = torch.mul(pairwise_dist, - gamma)
+            anchor_negative_mask = get_anchor_negative_triplet_mask(labels)
+            gamma_pairwise_dist2.masked_fill_(anchor_negative_mask ^ 1, float('-inf'))
+            nearest_negative_prob = F.softmax(gamma_pairwise_dist2, dim=1)
+
+        # (batch_size, )
+        ap = torch.sum(pairwise_dist * nearest_positive_prob, dim=1)
+        # (batch_size, )
+        an = torch.sum(pairwise_dist * nearest_negative_prob, dim=1)
+
+        hinge_loss = F.relu(ap - an + self.margin)
+
+        # count number of hard triplets (where triplet_loss > 0)
+        hard_triplets = torch.gt(hinge_loss, 1e-16).float()
+        num_hard_triplets = torch.sum(hard_triplets)
+        return torch.mean(hinge_loss), num_hard_triplets
