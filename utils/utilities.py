@@ -6,9 +6,9 @@ import torch.nn.functional as F
 
 # visualization module
 import matplotlib.pyplot as plt
-asc_classes = ['0', '1', '2', '3', '4', '5', '6', '7','8', '9']
+asc_classes = ['0', '1', '2', '3', '4', '5', '6', '7','8', '9', '10', '11', '12', '13', '14']
 colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-          ]
+          '#00ff7f', '#9400d3', '#3b3b3b', '#0000ee', '#bcd2ee']
 
 from sklearn.manifold import TSNE
 
@@ -28,7 +28,10 @@ def plot_embeddings(embeddings, targets, cls_num=10, xlim=None, ylim=None, title
         plt.xlim(xlim[0], xlim[1])
     if ylim:
         plt.ylim(ylim[0], ylim[1])
-    plt.legend(asc_classes)
+    if cls_num == 10:
+        plt.legend(asc_classes[:10])
+    else:
+        plt.legend(asc_classes)
     if title:
         plt.title(title)
     plt.show()
