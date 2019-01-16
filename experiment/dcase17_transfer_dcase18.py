@@ -146,9 +146,21 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, dcase17_
         d18_ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=d18_val_hist.recent)
 
     # reload best embedding model
-    # best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='transfer_{}_with_knn_exp'.\
-    #                                format(select_method)).select_best(run=(ckpt_prefix+'Dcase17')).selected_ckpt
-    # model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
+    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='transfer_{}_with_knn_exp'.\
+                                   format(select_method)).select_best(run=(ckpt_prefix+'Dcase17')).selected_ckpt
+    model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
+
+    d17_train_embeddings, d17_train_labels = extract_embeddings(dataloader=d17_train_loader, model=model, k_dims=embed_dims)
+    d17_test_embeddings, d17_test_labels = extract_embeddings(dataloader=d17_test_loader, model=model, k_dims=embed_dims)
+
+    d18_train_embeddings, d18_train_labels = extract_embeddings(dataloader=d18_train_loader, model=model, k_dims=embed_dims)
+    d18_test_embeddings, d18_test_labels = extract_embeddings(dataloader=d18_test_loader, model=model, k_dims=embed_dims)
+
+    plot_embeddings(d17_train_embeddings, d17_train_labels, cls_num=15, title='train data embedding visualization')
+    plot_embeddings(d17_test_embeddings, d17_test_labels, cls_num=15, title='test data embedding visualization')
+
+    plot_embeddings(d18_train_embeddings, d18_train_labels, cls_num=10, title='train data embedding visualization')
+    plot_embeddings(d18_test_embeddings, d18_test_labels, cls_num=10, title='test data embedding visualization')
 
 # train_embedding, train_labels = extract_embeddings(train_batch_loader, model, embed_dims)
     # test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
