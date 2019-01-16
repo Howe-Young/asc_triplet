@@ -72,6 +72,8 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, dcase17_
     ]))
 
     # build dcase18 train loader and test loader
+    d18_train_batch_sampler = BalanceBatchSampler(dataset=d18_train_dataset, n_classes=n_classes, n_samples=n_samples)
+    d18_train_batch_loader = DataLoader(dataset=d18_train_dataset, batch_sampler=d18_train_batch_sampler, num_workers=1)
     d18_train_loader = DataLoader(dataset=d18_train_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
     d18_test_loader = DataLoader(dataset=d18_test_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
 
@@ -147,31 +149,64 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, dcase17_
 
     # reload best embedding model
     best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='transfer_{}_with_knn_exp'.\
-                                   format(select_method)).select_best(run=(ckpt_prefix+'Dcase17')).selected_ckpt
+                                   format(select_method)).select_best(run=(ckpt_prefix+'Dcase18')).selected_ckpt
     model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
 
-    d17_train_embeddings, d17_train_labels = extract_embeddings(dataloader=d17_train_loader, model=model, k_dims=embed_dims)
-    d17_test_embeddings, d17_test_labels = extract_embeddings(dataloader=d17_test_loader, model=model, k_dims=embed_dims)
+    # get dcase 2017 train and test embeddings.
+    # d17_train_embeddings, d17_train_labels = extract_embeddings(dataloader=d17_train_loader, model=model, k_dims=embed_dims)
+    # d17_test_embeddings, d17_test_labels = extract_embeddings(dataloader=d17_test_loader, model=model, k_dims=embed_dims)
 
-    d18_train_embeddings, d18_train_labels = extract_embeddings(dataloader=d18_train_loader, model=model, k_dims=embed_dims)
-    d18_test_embeddings, d18_test_labels = extract_embeddings(dataloader=d18_test_loader, model=model, k_dims=embed_dims)
+    # get dcase 2018 train and test embeddings.
+    # d18_train_embeddings, d18_train_labels = extract_embeddings(dataloader=d18_train_loader, model=model, k_dims=embed_dims)
+    # d18_test_embeddings, d18_test_labels = extract_embeddings(dataloader=d18_test_loader, model=model, k_dims=embed_dims)
 
-    plot_embeddings(d17_train_embeddings, d17_train_labels, cls_num=15, title='train data embedding visualization')
-    plot_embeddings(d17_test_embeddings, d17_test_labels, cls_num=15, title='test data embedding visualization')
+    # visualize the embeddings
+    # plot_embeddings(d17_train_embeddings, d17_train_labels, cls_num=15, title='train data embedding visualization')
+    # plot_embeddings(d17_test_embeddings, d17_test_labels, cls_num=15, title='test data embedding visualization')
 
+    # visualize the embeddings
+    # plot_embeddings(d18_train_embeddings, d18_train_labels, cls_num=10, title='train data embedding visualization')
+    # plot_embeddings(d18_test_embeddings, d18_test_labels, cls_num=10, title='test data embedding visualization')
+
+    for epoch in range(1, dcase18_epochs + 1):
+        scheduler.step()
+
+        train_loss, metrics = train_epoch(train_loader=d18_train_batch_loader, model=model, loss_fn=loss_fn,
+                                          optimizer=optimizer, log_interval=log_interval,
+                                          metrics=[AverageNoneZeroTripletsMetric()])
+        train_logs = dict()
+        train_logs['loss'] = train_loss
+        for metric in metrics:
+            train_logs[metric.name()] = metric.value()
+        d18_train_hist.add(logs=train_logs, epoch=epoch)
+
+        d18_test_acc = kNN(model=model, train_loader=d18_train_loader, test_loader=d18_test_loader, k=k, cls_num=10)
+        d18_test_logs = {'acc': d18_test_acc}
+        d18_val_hist.add(logs=d18_test_logs, epoch=epoch)
+
+        d18_train_hist.clear()
+        d18_train_hist.plot()
+        d18_val_hist.plot()
+
+        logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, d18_train_hist.name, str(d18_train_hist.recent)))
+        logging.info('Epoch{:04d}, {:15}, {}'.format(epoch, d18_val_hist.name, str(d18_val_hist.recent)))
+
+        d18_ckpter.check_on(epoch=epoch, monitor='acc', loss_acc=d18_val_hist.recent)
+
+    # reload best embedding model to visualization
+    best_model_filename = Reporter(ckpt_root=os.path.join(ROOT_DIR, 'ckpt'), exp='transfer_{}_with_knn_exp'. \
+                                   format(select_method)).select_best(run=(ckpt_prefix + 'Dcase18')).selected_ckpt
+    model.load_state_dict(torch.load(best_model_filename)['model_state_dict'])
+
+    # get dcase 2018 train and test embeddings.
+    d18_train_embeddings, d18_train_labels = extract_embeddings(dataloader=d18_train_loader, model=model,
+                                                                k_dims=embed_dims)
+    d18_test_embeddings, d18_test_labels = extract_embeddings(dataloader=d18_test_loader, model=model,
+                                                              k_dims=embed_dims)
+
+    # visualize the embeddings
     plot_embeddings(d18_train_embeddings, d18_train_labels, cls_num=10, title='train data embedding visualization')
     plot_embeddings(d18_test_embeddings, d18_test_labels, cls_num=10, title='test data embedding visualization')
-
-# train_embedding, train_labels = extract_embeddings(train_batch_loader, model, embed_dims)
-    # test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
-    #
-    # xgb_cls(train_data=train_embedding, train_label=train_labels, val_data=test_embedding, val_label=test_labels,
-    #         exp_dir=os.path.dirname(log_file))
-
-    # TODO plot all curve
-    # if using_pretrain:
-    #     pt_train_hist.plot()
-    #     pt_val_hist.plot()
 
 
 if __name__ == '__main__':
