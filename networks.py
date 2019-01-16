@@ -158,3 +158,47 @@ class classifier(nn.Module):
         return x
 
 
+class CRNN(nn.Module):
+    def __init__(self):
+        super(CRNN, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(5, 5), padding=2)
+        self.bn1 = nn.BatchNorm2d(num_features=8)
+        self.conv2 = nn.Conv2d(in_channels=8, out_channels=8, kernel_size=(5, 5), padding=2, stride=(2, 2))
+        self.bn2 = nn.BatchNorm2d(num_features=8)
+
+        self.conv3 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(5, 5), padding=2)
+        self.bn3 = nn.BatchNorm2d(num_features=16)
+        self.conv4 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(5, 5), padding=2, stride=(2, 2))
+        self.bn4 = nn.BatchNorm2d(num_features=16)
+
+        self.conv5 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=(5, 5), padding=2)
+        self.bn5 = nn.BatchNorm2d(num_features=32)
+        self.conv6 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=(5, 5), padding=2, stride=(2, 2))
+        self.bn6 = nn.BatchNorm2d(num_features=32)
+
+        self.gru = nn.GRU(160, 64, 1, batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(in_features=128, out_features=64)
+
+        nn.init.orthogonal_(self.gru.weight_ih_l0); nn.init.constant_(self.gru.bias_ih_l0, 0)
+        nn.init.orthogonal_(self.gru.weight_hh_l0); nn.init.constant_(self.gru.bias_hh_l0, 0)
+        nn.init.orthogonal_(self.gru.weight_ih_l0_reverse); nn.init.constant_(self.gru.bias_ih_l0_reverse, 0)
+        nn.init.orthogonal_(self.gru.weight_hh_l0_reverse); nn.init.constant_(self.gru.bias_hh_l0_reverse, 0)
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
+        x = F.relu(self.bn6(self.conv6(x)))     #(batch, 32, 5, 63)
+        x = x.view(-1, 32 * 5, 63)              #(B, C*F, T)
+        x = x.permute(0, 2, 1)                  #(B, T, C*F)
+        x, _ = self.gru(x)                      #(B, T, 128)
+        x = torch.mean(x, dim=1)                #(B, 128)
+        x = self.fc(x)                          #(B, 64)
+        return x
+
+    def get_embeddings(self, x):
+        return self.forward(x)
+
+
