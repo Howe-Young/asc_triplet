@@ -147,9 +147,9 @@ class Dcase17Data:
                 label.append(np.array(f['dev'][audio].attrs['label']))
         # concat data along existing axis 0
         data = np.concatenate(data, axis=0)
-        le = preprocessing.LabelBinarizer()
-        label_onehot = le.fit_transform(np.array(label))
-        return data, label_onehot
+        le = preprocessing.LabelEncoder()
+        label_ids = le.fit_transform(label)
+        return data, label_ids
 
     def extract_npy_fnames(self, fold='fold1', mode='train'):
         """
@@ -171,10 +171,10 @@ class Dcase17Data:
                 fnames.append(audio)
         # concat data along existing axis 0
         data = np.concatenate(data, axis=0)
-        le = preprocessing.LabelBinarizer()
-        label_onehot = le.fit_transform(np.array(label))
+        le = preprocessing.LabelEncoder()
+        label_ids = le.fit_transform(label)
         fnames_codes = self.fname_encoder.transform(fnames)
-        return data, label_onehot, fnames_codes
+        return data, label_ids, fnames_codes
 
     def extract_npy_fnames_eva(self, split='dev'):
 
@@ -195,10 +195,10 @@ class Dcase17Data:
                 fnames.append(audio)
         # concat data along existing axis 0
         data = np.concatenate(data, axis=0)
-        le = preprocessing.LabelBinarizer()
-        label_onehot = le.fit_transform(np.array(label))
+        le = preprocessing.LabelEncoder()
+        label_ids = le.fit_transform(label)
         fnames_codes = self.fname_encoder.transform(fnames)
-        return data, label_onehot, fnames_codes
+        return data, label_ids, fnames_codes
 
     def create_devh5(self):
         """
