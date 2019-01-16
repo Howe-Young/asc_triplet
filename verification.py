@@ -118,7 +118,7 @@ def EER(distance, target, show_fig=False):
 from utils.utilities import *
 
 
-def kNN(model, train_loader, test_loader, k=3, embed_dims=64):
+def kNN(model, train_loader, test_loader, k=3, embed_dims=64, cls_num=10):
 
     train_embedding, train_labels = extract_embeddings(train_loader, model, embed_dims)
     test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
@@ -127,7 +127,7 @@ def kNN(model, train_loader, test_loader, k=3, embed_dims=64):
     sorted_index = np.argsort(distance_matrix, axis=1)
     predict_labels = []
     for i in range(len(test_embedding)):
-        class_cnt = np.zeros([10])
+        class_cnt = np.zeros([cls_num])
         k_neighbor = train_labels[sorted_index[i]]
         for j in range(k):
             class_cnt[int(k_neighbor[j])] += 1
