@@ -7,19 +7,19 @@ import torch.nn.functional as F
 # visualization module
 import matplotlib.pyplot as plt
 asc_classes = ['0', '1', '2', '3', '4', '5', '6', '7','8', '9']
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf']
+colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+          ]
 
 from sklearn.manifold import TSNE
 
 
-def plot_embeddings(embeddings, targets, xlim=None, ylim=None, title=None):
+def plot_embeddings(embeddings, targets, cls_num=10, xlim=None, ylim=None, title=None):
     plt.figure(figsize=(10, 10))
+    # TODO init ?
     tsne = TSNE(n_components=2, init='pca', random_state=0)
     result = tsne.fit_transform(embeddings)
 
-    for i in range(10):
+    for i in range(cls_num):
         inds = np.where(targets == i)[0]
 
         plt.scatter(result[inds, 0], result[inds, 1], c=colors[i])
