@@ -174,6 +174,9 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
     train_embedding, train_labels = extract_embeddings(train_batch_loader, model, embed_dims)
     test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
 
+    plot_embeddings(train_embedding, train_labels, cls_num=10, title='train data embedding visualization')
+    plot_embeddings(test_embedding, test_labels, cls_num=10, title='test data embedding visualization')
+
     xgb_cls(train_data=train_embedding, train_label=train_labels, val_data=test_embedding, val_label=test_labels,
             exp_dir=os.path.dirname(log_file))
 
@@ -186,7 +189,7 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
 if __name__ == '__main__':
 
     kwargs = {
-        'ckpt_prefix': 'Run03',
+        'ckpt_prefix': 'Run01',
         'device': '0',
         'lr': 1e-3,
         'embedding_epochs': 3,
@@ -199,8 +202,8 @@ if __name__ == '__main__':
         'squared': False,
         'embed_dims': 64,
         'embed_net': 'vgg',
-        'is_train_embedding_model': True,
-        'using_pretrain': True,
+        'is_train_embedding_model': False,
+        'using_pretrain': False,
         'batch_size': 128,
         'select_method': 'batch_all'
     }
