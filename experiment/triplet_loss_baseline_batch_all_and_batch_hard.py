@@ -27,7 +27,7 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, pretrain
                               batch_hard_epochs=80, n_classes=10, n_samples=12, margin=0.3, log_interval=50,
                               log_level="INFO", k=3, squared=False, embed_dims=64, embed_net='vgg',
                               is_train_embedding_model=False, using_pretrain=False, batch_size=128,
-                              select_method='batch_all_and_hard'):
+                              select_method='batch_all_and_hard', soft_margin=True):
     """
     knn as classifier.
     :param device:
@@ -120,14 +120,15 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, pretrain
             model.set_classify(False)
 
         if select_method == 'batch_all':
-            loss_fn = BatchAllTripletLoss(margin=margin, squared=squared)
+            loss_fn = BatchAllTripletLoss(margin=margin, squared=squared, soft_margin=soft_margin)
         elif select_method == 'batch_hard':
-            loss_fn = BatchHardTripletLoss(margin=margin, squared=squared)
+            loss_fn = BatchHardTripletLoss(margin=margin, squared=squared, soft_margin=soft_margin)
         elif select_method == 'random_hard':
-            loss_fn = RandomHardTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin))
+            loss_fn = RandomHardTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin),
+                                            squared=squared, soft_margin=soft_margin)
         elif select_method == 'batch_all_and_hard':
-            loss_fn_ba = BatchAllTripletLoss(margin=margin, squared=squared)
-            loss_fn_bh = BatchHardTripletLoss(margin=margin, squared=squared)
+            loss_fn_ba = BatchAllTripletLoss(margin=margin, squared=squared, soft_margin=soft_margin)
+            loss_fn_bh = BatchHardTripletLoss(margin=margin, squared=squared, soft_margin=soft_margin)
         else:
             print("{} is not defined!".format(select_method))
             return
@@ -202,9 +203,10 @@ if __name__ == '__main__':
         'embed_dims': 64,
         'embed_net': 'vgg',
         'is_train_embedding_model': True,
-        'using_pretrain': True,
+        'using_pretrain': False,
         'batch_size': 128,
-        'select_method': 'batch_all_and_hard'
+        'select_method': 'batch_all_and_hard',
+        'soft_margin': True
     }
 
     triplet_loss_with_knn_exp(**kwargs)
