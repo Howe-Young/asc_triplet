@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 from utils.utilities import *
+import logging
 
 
 class RandomHardTripletLoss(nn.Module):
@@ -14,10 +15,12 @@ class RandomHardTripletLoss(nn.Module):
     Takes a batch of embeddings and corresponding labels.
     Triplets are generated using triplet_selector object that take embeddings and labels and return indices of triplets.
     """
-    def __init__(self, margin, triplet_selector):
+    def __init__(self, margin, triplet_selector, squared=False, soft_margin=True):
         super(RandomHardTripletLoss, self).__init__()
         self.margin = margin
         self.triplet_selector = triplet_selector
+        self.squared = squared
+        self.soft_margin = soft_margin
 
     def forward(self, embeddings, labels):
         triplets = self.triplet_selector.get_triplets(embeddings, labels)
@@ -27,16 +30,24 @@ class RandomHardTripletLoss(nn.Module):
 
         ap_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 1]]).pow(2).sum(1)
         an_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 2]]).pow(2).sum(1)
-        losses = F.relu(ap_distances - an_distances + self.margin)
 
-        return losses.mean(), len(triplets)
+        if not self.squared:
+            ap_distances = torch.sqrt(ap_distances)
+            an_distances = torch.sqrt(an_distances)
+
+        if self.soft_margin:
+            triplet_loss = torch.log1p(torch.exp(ap_distances - an_distances))
+        else:
+            triplet_loss = F.relu(ap_distances - an_distances + self.margin)
+
+        return triplet_loss.mean(), len(triplets)
 
 
 class BatchHardTripletLoss(nn.Module):
     """
     Batch_Hard Triplet Loss
     """
-    def __init__(self, margin=0.1, squared=False):
+    def __init__(self, margin=0.1, squared=False, soft_margin=True):
         """
         :param margin: margin for triplet loss
         :param squared: if True, output is the pairwise squared euclidean distance matrix.
@@ -45,6 +56,7 @@ class BatchHardTripletLoss(nn.Module):
         super(BatchHardTripletLoss, self).__init__()
         self.margin = margin
         self.squared = squared
+        self.soft_margin = soft_margin
 
     def forward(self, embeddings, labels):
         """
@@ -77,8 +89,13 @@ class BatchHardTripletLoss(nn.Module):
         # shape (batch_size, 1)
         hardest_negative_dist, _ = torch.min(anchor_negative_dist, dim=1, keepdim=True)
 
-        # Combine biggest d(a, p) and smallest d(a, n) into final triplet loss
-        triplet_loss = F.relu(hardest_positive_dist - hardest_negative_dist + self.margin)
+        if self.soft_margin:
+            # Combine biggest d(a, p) and smallest d(a, n) into final triplet loss
+            triplet_loss = torch.log1p(torch.exp(hardest_positive_dist - hardest_negative_dist))
+
+        else:
+            # Combine biggest d(a, p) and smallest d(a, n) into final triplet loss
+            triplet_loss = F.relu(hardest_positive_dist - hardest_negative_dist + self.margin)
 
         # count number of hard triplets (where triplet_loss > 0)
         hard_triplets = torch.gt(triplet_loss, 1e-16).float()
@@ -93,7 +110,7 @@ class BatchAllTripletLoss(nn.Module):
     """
     batch all triplet loss
     """
-    def __init__(self, margin=0.1, squared=False):
+    def __init__(self, margin=0.1, squared=False, soft_margin=True):
         """
         :param margin: margin for triplet loss
         :param squared: if True, output is the pairwise squared euclidean distance matrix.
@@ -102,6 +119,7 @@ class BatchAllTripletLoss(nn.Module):
         super(BatchAllTripletLoss, self).__init__()
         self.margin = margin
         self.squared = squared
+        self.soft_margin = soft_margin
 
     def forward(self, embeddings, labels):
         """
@@ -120,18 +138,28 @@ class BatchAllTripletLoss(nn.Module):
         anchor_negative_dist = pairwise_dist.unsqueeze(dim=1)
         assert anchor_negative_dist.shape[1] == 1, "{}".format(anchor_negative_dist.shape)
 
+        # put to zero the invalid triplets
+        mask = get_triplet_mask(labels).float()
+
         # Compute a 3D tensor of size(batch_size, batch_size, batch_size)
         # triplet_loss[i, j, k] will contain the triplet loss of anchor=i, pos=j, neg=k
         # Uses broadcasting where the 1st argument has shape(batch_size, batch_size, 1)
         # and the 2nd (batch_size, 1, batch_size)
-        triplet_loss = anchor_positive_dist - anchor_negative_dist + self.margin
+        if self.soft_margin:
+            triplet_loss = anchor_positive_dist - anchor_negative_dist
 
-        # put to zero the invalid triplets
-        mask = get_triplet_mask(labels).float()
-        triplet_loss = triplet_loss * mask
+            # soft margin
+            triplet_loss = torch.log1p(torch.exp(triplet_loss))
 
-        # remove negative losses (i.e. the easy triplets)
-        triplet_loss = F.relu(triplet_loss)
+            # put to zero the invalid triplets
+            triplet_loss = triplet_loss * mask
+
+        else:
+            triplet_loss = anchor_positive_dist - anchor_negative_dist + self.margin
+            triplet_loss = triplet_loss * mask
+
+            # remove negative losses (i.e. the easy triplets)
+            triplet_loss = F.relu(triplet_loss)
 
         # count number of hard triplets (where triplet_loss > 0)
         hard_triplets = torch.gt(triplet_loss, 1e-16).float()
@@ -139,6 +167,7 @@ class BatchAllTripletLoss(nn.Module):
 
         triplet_loss = torch.sum(triplet_loss) / (num_hard_triplets + 1e-16)
         return triplet_loss, num_hard_triplets
+
 
 class BatchAllWithOutlierTripletLoss(nn.Module):
     def __init__(self, margin=1.0, squared=False, kernel_width=None):
