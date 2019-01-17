@@ -26,7 +26,7 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embedding_epochs=10, classify_epochs=100,
                            n_classes=10, n_samples=12, margin=0.3, log_interval=50, log_level="INFO", k=3,
                            squared=False, embed_dims=64, embed_net='vgg', is_train_embedding_model=False,
-                           using_pretrain=False, batch_size=128, select_method='batch_all'):
+                           using_pretrain=False, batch_size=128, select_method='batch_all', soft_margin=True):
     """
     knn as classifier.
     :param device:
@@ -119,11 +119,12 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
             model.set_classify(False)
 
         if select_method == 'batch_all':
-            loss_fn = BatchAllTripletLoss(margin=margin, squared=squared)
+            loss_fn = BatchAllTripletLoss(margin=margin, squared=squared, soft_margin=soft_margin)
         elif select_method == 'batch_hard':
-            loss_fn = BatchHardTripletLoss(margin=margin, squared=squared)
+            loss_fn = BatchHardTripletLoss(margin=margin, squared=squared, soft_margin=soft_margin)
         elif select_method == 'random_hard':
-            loss_fn = RandomHardTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin))
+            loss_fn = RandomHardTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin),
+                                            squared=squared, soft_margin=soft_margin)
         else:
             print("{} is not defined!".format(select_method))
             return
@@ -189,7 +190,7 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
 if __name__ == '__main__':
 
     kwargs = {
-        'ckpt_prefix': 'Run01',
+        'ckpt_prefix': 'Run06',
         'device': '0',
         'lr': 1e-3,
         'embedding_epochs': 3,
@@ -202,10 +203,11 @@ if __name__ == '__main__':
         'squared': False,
         'embed_dims': 64,
         'embed_net': 'vgg',
-        'is_train_embedding_model': False,
+        'is_train_embedding_model': True,
         'using_pretrain': False,
         'batch_size': 128,
-        'select_method': 'batch_all'
+        'select_method': 'batch_all',
+        'soft_margin': True
     }
 
     triplet_loss_with_knn_exp(**kwargs)
