@@ -168,7 +168,7 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, dcase17_
     # plot_embeddings(d18_train_embeddings, d18_train_labels, cls_num=10, title='train data embedding visualization')
     # plot_embeddings(d18_test_embeddings, d18_test_labels, cls_num=10, title='test data embedding visualization')
 
-    for epoch in range(1, dcase18_epochs + 1):
+    for epoch in range(dcase17_epochs + 1, dcase17_epochs + dcase18_epochs + 1):
         scheduler.step()
 
         train_loss, metrics = train_epoch(train_loader=d18_train_batch_loader, model=model, loss_fn=loss_fn,
