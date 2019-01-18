@@ -88,7 +88,7 @@ def batch_all_total_with_knn_exp(device='0', ckpt_prefix='Run01', lr=1e-3, embed
 
     # to gpu
     model = model.cuda()
-    loss_fn = HardTripletLoss(margin=margin, hardest=False, squared=squared)
+    loss_fn = BatchAllTripletLoss(margin=margin, squared=squared, soft_margin=False)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.5)
 
