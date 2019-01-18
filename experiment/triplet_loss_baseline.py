@@ -149,14 +149,14 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
             train_hist.add(logs=train_logs, epoch=epoch)
 
             # TODO sklearn knn
-            from sklearn import neighbors
-            knn = neighbors.KNeighborsClassifier(n_neighbors=k)
-            train_embedding, train_labels = extract_embeddings(train_batch_loader, model, embed_dims)
-            test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
-            knn.fit(train_embedding, train_labels)
-            predict = knn.predict(test_embedding)
-            test_acc = np.mean(predict == test_labels)
-            # test_acc = kNN(model=model, train_loader=train_batch_loader, test_loader=test_loader, k=k)
+            # from sklearn import neighbors
+            # knn = neighbors.KNeighborsClassifier(n_neighbors=k)
+            # train_embedding, train_labels = extract_embeddings(train_batch_loader, model, embed_dims)
+            # test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
+            # knn.fit(train_embedding, train_labels)
+            # predict = knn.predict(test_embedding)
+            # test_acc = np.mean(predict == test_labels)
+            test_acc = kNN(model=model, train_loader=train_batch_loader, test_loader=test_loader, k=k)
             test_logs = {'acc': test_acc}
             val_hist.add(logs=test_logs, epoch=epoch)
 
