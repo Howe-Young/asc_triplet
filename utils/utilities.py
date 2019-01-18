@@ -178,6 +178,7 @@ class Reporter(object):
             acc_str = re.search('acc_(.*)\.tar', s).group(1)
             acc.append(float(acc_str))
 
+        acc = np.array(acc)
         best_idx = np.argmax(acc)
         best_fname = matched[best_idx]
 
