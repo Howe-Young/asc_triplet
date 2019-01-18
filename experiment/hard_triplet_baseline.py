@@ -7,7 +7,7 @@ from data_manager.transformer import *
 from torch.utils.data import DataLoader
 import os
 import networks
-from losses import OnlineTripletLoss
+from losses import RandomHardTripletLoss
 from utils.selector import *
 from metrics import *
 import torch.optim as optim
@@ -64,7 +64,7 @@ def hard_triplet_baseline_exp(device='3', ckpt_prefix='Run01', lr=1e-3, n_epochs
 
     model = networks.embedding_net_shallow()
     model = model.cuda()
-    loss_fn = OnlineTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin))
+    loss_fn = RandomHardTripletLoss(margin=margin, triplet_selector=RandomNegativeTripletSelector(margin=margin))
     optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.5)
 
