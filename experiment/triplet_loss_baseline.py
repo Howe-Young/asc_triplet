@@ -190,7 +190,7 @@ def triplet_loss_with_knn_exp(device='3', ckpt_prefix='Run01', lr=1e-3, embeddin
 if __name__ == '__main__':
 
     kwargs = {
-        'ckpt_prefix': 'Run06',
+        'ckpt_prefix': 'R10_9_margin_1.0',
         'device': '0',
         'lr': 1e-3,
         'embedding_epochs': 3,
@@ -203,7 +203,7 @@ if __name__ == '__main__':
         'squared': False,
         'embed_dims': 64,
         'embed_net': 'vgg',
-        'is_train_embedding_model': True,
+        'is_train_embedding_model': False,
         'using_pretrain': False,
         'batch_size': 128,
         'select_method': 'batch_all',
