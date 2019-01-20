@@ -120,8 +120,16 @@ from utils.utilities import *
 
 def kNN(model, train_loader, test_loader, k=3, embed_dims=64, cls_num=10):
 
-    train_embedding, train_labels = extract_embeddings(train_loader, model, embed_dims)
-    test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
+    if type(train_loader) is dict:
+        embedding_A, labels_A = extract_embeddings(train_loader['a'], model, embed_dims)
+        embedding_B, labels_B = extract_embeddings(train_loader['b'], model, embed_dims)
+        embedding_C, labels_C = extract_embeddings(train_loader['c'], model, embed_dims)
+        train_embedding = np.concatenate((embedding_A, embedding_B, embedding_C))
+        train_labels = np.concatenate((labels_A, labels_B, labels_C))
+        test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
+    else:
+        train_embedding, train_labels = extract_embeddings(train_loader, model, embed_dims)
+        test_embedding, test_labels = extract_embeddings(test_loader, model, embed_dims)
 
     distance_matrix = get_distance_matrix2(test_embedding, train_embedding)
     sorted_index = np.argsort(distance_matrix, axis=1)
