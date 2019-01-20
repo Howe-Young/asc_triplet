@@ -162,3 +162,54 @@ def test_epoch(val_loader, model, loss_fn, metrics):
                 metric(outputs, target, loss_outputs)
 
     return val_loss, metrics
+
+
+def multi_device_train_epoch(train_loader, model, loss_fn, optimizer, log_interval, metrics):
+    for metric in metrics:
+        metric.reset()
+
+    model.train()
+    losses = []
+    total_loss = 0
+    total_batch = float(len(train_loader['a'].dataset)) / 180.0 * float(len(train_loader['b'].dataset)) / 180.0
+    bc_batchs = float(len(train_loader['b'].dataset)) / 180.0
+    for batch_idx, data_A in enumerate(train_loader['a']):
+        for batch_idy, (data_B, data_C) in enumerate(zip(train_loader['b'], train_loader['c'])):
+            data = torch.cat((data_A[0], data_B[0], data_C[0]), dim=0)
+            target = torch.cat((data_A[1], data_B[1], data_C[1]), dim=0)
+            if not type(data) in (tuple, list):
+                data = (data,)
+            data = tuple(d.cuda() for d in data)
+
+            if target is not None:
+                target = target.cuda()
+
+            optimizer.zero_grad()
+            outputs = model(*data)
+
+            if type(outputs) not in (tuple, list):
+                outputs = (outputs,)
+
+            loss_inputs = outputs
+            if target is not None:
+                target = (target, )
+                loss_inputs += target
+
+            loss_outputs = loss_fn(*loss_inputs)
+            loss = loss_outputs[0] if type(loss_outputs) in (tuple, list) else loss_outputs
+            losses.append(loss.item())
+            total_loss += loss.item()
+            loss.backward()
+            optimizer.step()
+
+            for metric in metrics:
+                metric(outputs, target, loss_outputs)
+            cur_batch = batch_idx * bc_batchs + batch_idy
+            if cur_batch % log_interval == 0:
+                message = 'Train: [({:.0f}%)]\tLoss: {:.6f}'.format(100.0 * cur_batch / total_batch,
+                                                                    np.mean(losses))
+                print(message)
+                losses = []
+
+    total_loss /= ((batch_idx + 1) * (batch_idy + 1))
+    return total_loss, metrics
